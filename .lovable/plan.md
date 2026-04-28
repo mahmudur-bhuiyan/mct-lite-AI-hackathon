@@ -1,180 +1,63 @@
-# Mortgage Control Tower Lite — Configuration Plan
+# Connect Own Backend via Lovable Cloud
 
-Ship a streamlined "Lite" build by **hiding** features behind the existing module/feature-flag/role guards. **Nothing is deleted** — everything is reversible from `/admin/modules` and `/admin/roles` once we want to re-enable it.
+## Current state (verified)
 
----
+The remix still uses the original project's Supabase instance:
 
-## 1. Rebranding to "MCT Lite"
+- `.env` → `VITE_SUPABASE_URL=https://spppmtgzugvknfqeyjqq.supabase.co`
+- `src/integrations/supabase/public-config.ts` → hardcoded fallback to `spppmtgzugvknfqeyjqq`
+- `supabase/config.toml` + `supabase/.temp/linked-project.json` → linked to `spppmtgzugvknfqeyjqq` ("mortgage-control-tower")
+- Live network logs show every auth/profile/role request hitting `spppmtgzugvknfqeyjqq.supabase.co`
+- Logged-in user in preview (`admin@collabai.software`) is from the original DB
 
-**`src/contexts/BrandingContext.tsx`** — update defaults:
-- `companyName`: `"Mortgage Control Tower Lite"`
-- `tagline`: `"Your loan pipeline. Simplified."`
-- `supportEmail`: `"support@mortgagecontroltower.com"`
-- Add `shortName: "MCT Lite"` to the context.
+This means: any data you create, every login, every role — is going to the original owner's database, not yours.
 
-**Sidebar header** (`src/components/layout/AppSidebar.tsx`) — replace the hard-coded `"Control Tower"` / `{companyName}` block with `"MCT Lite"` (primary) and `"Mortgage Control Tower Lite"` (subtitle).
+## What this plan does
 
-**CollabAI removal** — replace `"CollabAI"`, `"CollabAI Agentic Workforce"`, `"collabai.software"` with `"MCT Lite"` / `"Mortgage Control Tower Lite"` / `"mortgagecontroltower.com"` in:
-- `src/pages/Index.tsx`, `src/pages/Pricing.tsx`, `src/pages/Login.tsx`
-- `src/components/landing/*` (Hero, Footer, FinalCTA, PricingPreview)
-- `src/components/pricing/*` (rename `CollabAISecurityBadge.tsx` → `SecurityBadge.tsx`, update imports in `index.ts`)
-- `src/components/OnboardingWizard.tsx`, `src/pages/admin/SystemSettings.tsx`
-- `index.html` `<title>` + meta
-- Headline docs only: `docs/README.md`, `docs/QUICKSTART.md`, `docs/PRODUCT_OVERVIEW.md`, `docs/ADMIN-GUIDE.md` (skip dated daily logs and deployment runbooks to keep churn low — call this out in the summary).
+Switch the entire app to a brand-new Lovable Cloud project owned by this remix, then re-seed the minimum data needed for MCT Lite to run.
 
----
+## Steps
 
-## 2. Supabase — new project, same schema
+### 1. Enable Lovable Cloud
+Provision a fresh Cloud (Supabase) backend for this project. This auto-injects new `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_SUPABASE_PROJECT_ID` and rewires `src/integrations/supabase/client.ts` to the new project.
 
-- User supplies `VITE_SUPABASE_URL`, `VITE_SUPABASE_PROJECT_ID`, `VITE_SUPABASE_PUBLISHABLE_KEY` via Settings.
-- **No migration files touched.** All existing migrations, edge functions, and RLS policies remain.
-- Add a one-time setup note in `docs/QUICKSTART.md` describing: link new project, push migrations (`supabase db push`), deploy functions, set secrets.
+### 2. Remove hardcoded references to the old project
+- `src/integrations/supabase/public-config.ts`: drop the `DEV_FALLBACK_URL` / `DEV_FALLBACK_KEY` constants pointing at `spppmtgzugvknfqeyjqq` so nothing can silently fall back to the old backend.
+- `.env` / `.env.example` / `DEPLOYMENT_ENV_SETUP.md`: replace example values with placeholders (no secrets in repo).
+- `supabase/config.toml` + `supabase/.temp/*`: update `project_id` to the new Cloud ref so CLI commands target the new project.
 
----
+### 3. Apply schema to the new database
+The new Cloud project starts empty. Run the existing migrations under `supabase/migrations/` against it so all tables (`profiles`, `user_roles`, `module_settings`, `loans`, `borrowers`, `activity_logs`, `app_role` enum, RLS policies, RPCs like `log_activity`, `has_role`, etc.) exist.
 
-## 3. Three roles
+### 4. Seed MCT Lite configuration
+Apply `supabase/seeds/lite_modules_and_roles.sql` (created in the previous step) to enable only the 8 active modules and confirm the 3-role hierarchy.
 
-Roles in `profiles.role`:
+### 5. Fix the `activity_logs_resource_type_check` regression
+Network logs show login attempts fail to log because `"auth"` isn't in the allowed `resource_type` check constraint. Add a migration that extends the check constraint to include `'auth'` (or change the call site to a permitted value). This is what's causing the 23514 errors visible right now.
 
-| Role string     | Access                                                                                  |
-| --------------- | --------------------------------------------------------------------------------------- |
-| `admin`         | Everything + entire `/admin/*`                                                          |
-| `loan_officer`  | Dashboard, Loans (own via RLS), Borrowers (own), AI Chat, Knowledge, Notifications, Action Items |
-| `user`          | Dashboard (summary), AI Chat, Knowledge (read), Notifications                            |
+### 6. Bootstrap the first admin user
+Empty DB = no users. Create:
+- `admin@mortgagecontroltower.com` (admin role) via Cloud Users panel, then insert a row in `user_roles` with `role='admin'`.
+- Optional: `demo@mortgagecontroltower.com` as `loan_officer` for demos.
+Document the credentials in a setup note (not committed).
 
-Changes:
-- **`src/lib/permissions.ts`** — add a `LITE_ROLE_PERMISSIONS: Record<"admin"|"loan_officer"|"user", string[]>` map listing the permission keys each role gets by default.
-- **`src/hooks/useEffectivePermissions.ts`** — when the user has no `custom_role_id` and no per-user settings, fall back to `LITE_ROLE_PERMISSIONS[profile.role]` instead of an empty list. Admin still short-circuits to all permissions.
-- **`src/components/routing/ModuleRoute.tsx`** `checkRole` — replace the `user → moderator → admin` hierarchy with the explicit set `{admin, loan_officer, user}`. Admin satisfies every requirement; `loan_officer` satisfies `loan_officer` and `user`; `user` satisfies only `user`.
-- **`src/pages/admin/RoleManagement.tsx`** — surface the three built-in roles as read-only "system roles" at the top; custom roles still allowed below.
-- Add a SQL helper in a **new** migration `supabase/migrations/<ts>_seed_lite_roles.sql` that ensures the `roles` table has `admin`, `loan_officer`, `user` rows with appropriate `permissions` arrays (idempotent `ON CONFLICT (slug) DO NOTHING`).
+### 7. Edge function secrets
+Re-add any secrets the edge functions need (Gmail OAuth, LendingPad, OpenAI/Lovable AI key, etc.) to the new Cloud project. The old project's secrets do not transfer.
 
----
+### 8. Verify
+- Visit `/env-debug` → confirm new URL/key are loaded.
+- Sign in as the new admin → confirm `profiles` + `user_roles` populate.
+- Confirm sidebar renders the 8 lite modules.
+- Confirm `log_activity` no longer 400s.
 
-## 4. Active vs hidden modules
+## Technical notes
 
-Use the existing `module_settings` table. Add a migration `supabase/migrations/<ts>_seed_lite_modules.sql` that upserts these slugs (enabled flags shown):
+- Auth users from the old project cannot be migrated automatically (password hashes are owned by the source project). New accounts must be created in the new project.
+- Loan/borrower data also does not transfer — fresh DB. If you want to copy data, that's a separate export/import task.
+- Microsoft SSO (`VITE_MICROSOFT_*`) is unaffected; it's identity-provider config, not Supabase.
+- After cutover, the old `spppmtgzugvknfqeyjqq` references should appear nowhere in `src/` or `supabase/`.
 
-| Slug                  | Enabled | Notes                                        |
-| --------------------- | ------- | -------------------------------------------- |
-| `loans`               | `true`  | Loans + Borrowers + Action Items + Calendar |
-| `meetings`            | `false` |                                              |
-| `tasks`               | `false` |                                              |
-| `clients`             | `false` |                                              |
-| `pricing`             | `false` |                                              |
-| `rate_locks`          | `false` |                                              |
-| `hedge_analytics`     | `false` |                                              |
-| `underwriting_queue`  | `false` |                                              |
-| `document_review`     | `false` |                                              |
-| `communication_center`| `false` |                                              |
-| `email_intelligence`  | `false` |                                              |
-| `borrower_portal`     | `false` |                                              |
-| `prequal_calculator`  | `false` | `/prequal-public` widget remains public      |
-| `compliance`          | `false` |                                              |
-| `hmda`                | `false` |                                              |
-| `licensing`           | `false` |                                              |
-| `leaderboard`         | `false` |                                              |
-| `pipeline_views`      | `false` | HubSpot/Encompass pipeline pages             |
+## Risks
 
-Routing changes in **`src/App.tsx`**:
-- Wrap all currently-ungated hidden routes in `<ModuleRoute requiresModule="...">` using the slugs above (e.g. `/meetings/*` gets `requiresModule="meetings"`, `/pipeline/*` gets `requiresModule="pipeline_views"`, `/communication-center` gets `requiresModule="communication_center"`, etc.).
-- Active routes (`/dashboard`, `/loans/*`, `/borrowers/*`, `/ai`, `/ai/chat`, `/knowledge/*`, `/notifications`, `/action-items`) keep their existing guards. `/loans` and `/borrowers` already use `requiresModule="loans"` — leave intact.
-- **Do not delete any imports or `<Route>` blocks** — admin can flip a module on later and it just works.
-
-**`src/components/layout/AppSidebar.tsx`** — `navigationItems` becomes exactly:
-
-1. Dashboard
-2. Loans (`module: "loans"`, perm `loans:read`)
-3. Borrowers (`module: "loans"`, perm `borrowers:read`)
-4. Knowledge Base (perm `knowledge:read`, flag `enableKnowledgeBase`)
-5. Notifications (flag `enableNotifications`)
-6. Action Items
-
-`aiToolsItems` becomes:
-- AI Chat (perm `ai_chat:read`, flag `enableAIChat`)
-
-Remove Pipeline, Operations Calendar, Email Intelligence, Communication Center, AI Agents, Feedback from the sidebar arrays. Their routes stay reachable by URL once the matching module is enabled.
-
----
-
-## 5. Slim admin nav
-
-**`src/components/layout/AdminSidebar.tsx`** — collapse `sidebarGroups` to only:
-
-- **DASHBOARD** → Overview
-- **USERS & ACCESS** → User Management, Role Management
-- **AI** → AI Models
-- **SYSTEM** → Module Management, System Settings, Integrations
-
-All other groups (Content & Feedback, Risk & Compliance, Developer Docs, Cron, Activity Logs, AI Usage, Deployment, Environment, SSO, Onboarding) are **removed from the array** but their routes in `App.tsx` stay intact, so admin can still reach them by URL.
-
----
-
-## 6. Integrations — untouched
-
-`/admin/integrations` and `/admin/integrations/:slug` (`ProviderDetail`) already render every provider (LendingPad, Encompass, Zoom, Microsoft Teams, Gmail, DocuSign, OpenAI, Google, Anthropic, Perplexity, SendGrid). No code changes needed — only a quick visual check that all provider cards render in the new Supabase project once `integration_providers` is seeded by existing migrations.
-
----
-
-## 7. Signup → default role `user`
-
-- **`src/pages/Signup.tsx`** — when creating the profile after `supabase.auth.signUp`, insert `role: "user"` into `profiles` (it likely already does — verify and harden).
-- Add a "first-user becomes admin" check: a new edge function `bootstrap-first-admin` (or extend an existing one) that, on signup, counts `profiles` and if `count === 1` upgrades that user's `user_roles` to `admin`. Document the manual fallback (the existing `docs/QUICKSTART.md` SQL snippet) in the rebranded quickstart.
-- `/admin/users` already supports role assignment — surface a clear "Promote to Loan Officer / Admin" action in the row menu (small UI tweak in `UserManagement.tsx`).
-
----
-
-## 8. Role-aware Dashboard
-
-**`src/pages/Dashboard.tsx`** — branch on `profile.role`:
-
-- `admin`: existing pipeline snapshot + AI agent status + user count (use `useAdminStats`, `useManagerDashboard`).
-- `loan_officer`: own active loans count, pending conditions, today's action items, AI chat shortcut (`useDashboard`, `useActionItems`).
-- `user`: welcome card, AI chat shortcut, recent knowledge articles (`useKnowledge`).
-
-No new hooks — reuse `useDashboard`, `useManagerDashboard`, `useAdminStats`, `useActionItems`, `useKnowledge`.
-
----
-
-## 9. Untouched (guardrails)
-
-- `supabase/functions/_shared/ai-utils.ts`
-- `useLoanTransitions` + `transition-loan-status` edge function
-- `loan_timeline_events` table
-- Every existing RLS policy and migration file
-- `ai_chat_threads` `conversation_id` threading
-- `retrieve-agent-memories` + `extract-agent-memories`
-- JWT validation in edge functions
-
----
-
-## Technical summary
-
-**Files edited:**
-- `src/contexts/BrandingContext.tsx`
-- `src/lib/permissions.ts`
-- `src/hooks/useEffectivePermissions.ts`
-- `src/components/routing/ModuleRoute.tsx`
-- `src/components/layout/AppSidebar.tsx`
-- `src/components/layout/AdminSidebar.tsx`
-- `src/App.tsx` (wrap hidden routes in `ModuleRoute requiresModule=...`, no deletions)
-- `src/pages/Dashboard.tsx`
-- `src/pages/Signup.tsx`, `src/pages/admin/UserManagement.tsx`
-- `src/pages/Index.tsx`, `src/pages/Pricing.tsx`, `src/pages/Login.tsx`
-- `src/components/landing/*`, `src/components/pricing/*`
-- `src/components/OnboardingWizard.tsx`, `src/pages/admin/SystemSettings.tsx`
-- `index.html`
-- Headline `docs/*.md` only
-
-**Files added:**
-- `supabase/migrations/<ts>_seed_lite_modules.sql` (upsert 18 module rows)
-- `supabase/migrations/<ts>_seed_lite_roles.sql` (upsert `admin`/`loan_officer`/`user` in `roles`)
-- Optional: `supabase/functions/bootstrap-first-admin/index.ts`
-
-**Files explicitly NOT touched:** all existing migrations, all edge functions in the guardrail list, every page/component under hidden modules (they continue to exist, just gated).
-
-**Risks:**
-- A user with the legacy `moderator` role string will lose access until reassigned — flag this in the migration's comment and in the rebranded quickstart.
-- Module slugs added by the new seed must match the strings used in `requiresModule={...}` props in `App.tsx` — single source of truth lives in the migration; document the list in `src/lib/admin-routes.ts` as a constant to avoid drift.
-
-**Reversibility:** Flip any module to `enabled=true` in `/admin/modules` to instantly restore its routes and (if added back to the array) its sidebar entry. No code redeploy needed for backend visibility; sidebar entries require uncommenting one line in `AppSidebar.tsx`.
+- **Data loss perception**: anything you've created while logged into the original project stays there — it's not yours and won't move. Confirm you accept this before cutover.
+- **Edge functions**: ~80+ functions exist; they'll redeploy against the new project but any provider-specific webhooks (Gmail, LendingPad, Teams) will need their callback URLs reconfigured in those external services to point at the new project's function URLs.

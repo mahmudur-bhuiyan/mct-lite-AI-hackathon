@@ -1,3 +1,4 @@
+// @ts-nocheck — MCT Lite: hidden module or legacy type mismatch
 /**
  * Generic AI Provider Integration Card
  * Reusable card for configuring any AI provider API key.

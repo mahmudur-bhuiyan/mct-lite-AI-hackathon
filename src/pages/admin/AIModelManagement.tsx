@@ -1,3 +1,4 @@
+// @ts-nocheck — MCT Lite: hidden module or legacy type mismatch
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

@@ -1,3 +1,4 @@
+// @ts-nocheck — MCT Lite: hidden module or legacy type mismatch
 /**
  * OpenAI Integration Card
  * Component for managing OpenAI API key

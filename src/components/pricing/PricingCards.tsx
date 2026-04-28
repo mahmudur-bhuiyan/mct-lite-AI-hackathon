@@ -19,7 +19,7 @@ const pricingTiers = [
       "Real-time Dashboard",
       "Lock Expiry Alerts",
       "SLA Monitoring",
-      "CollabAI Security",
+      "Enterprise-Grade Security",
       "Email Support",
     ],
     cta: "Get Started",

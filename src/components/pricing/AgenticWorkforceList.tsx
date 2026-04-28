@@ -191,7 +191,7 @@ export function AgenticWorkforceList() {
             All agents work together seamlessly, sharing context and learning from your operations.
           </p>
           <p className="text-sm text-mortgage-teal font-medium">
-            Powered by CollabAI's secure infrastructure
+            Built on a hardened, enterprise-grade backbone
           </p>
         </div>
 

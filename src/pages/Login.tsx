@@ -61,7 +61,7 @@ export default function Login() {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-sm">
             <Brain className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="text-xl font-semibold text-foreground">Control Tower</h1>
+          <h1 className="text-xl font-semibold text-foreground">MCT Lite</h1>
         </div>
 
         <Card className="shadow-premium">

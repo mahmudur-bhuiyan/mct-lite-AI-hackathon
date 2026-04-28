@@ -1,0 +1,87 @@
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserPermissionSettings } from "@/hooks/useUserPermissionSettings";
+import { supabase } from "@/lib/supabase";
+import { AVAILABLE_PERMISSIONS, permissionKey } from "@/lib/permissions";
+
+/**
+ * Effective permissions for the current user:
+ * - If user has app role "admin", they have all permissions.
+ * - Else if user has a custom role (user_roles.custom_role_id), use that role's permissions from roles table.
+ * - Otherwise use user_permission_settings (per-user toggles).
+ */
+export function useEffectivePermissions() {
+  const { user, profile } = useAuth();
+  const userId = user?.id ?? null;
+  const { data: settings, isLoading: settingsLoading } = useUserPermissionSettings(userId);
+
+  const { data: userRoleRow } = useQuery({
+    queryKey: ["user_roles", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("custom_role_id")
+        .eq("user_id", userId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { custom_role_id: string | null } | null;
+    },
+    enabled: !!userId,
+  });
+
+  const customRoleId = userRoleRow?.custom_role_id ?? null;
+
+  const { data: rolePermissions, isLoading: roleLoading } = useQuery({
+    queryKey: ["roles", "permissions", customRoleId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("roles")
+        .select("permissions")
+        .eq("id", customRoleId!)
+        .single();
+      if (error) throw error;
+      return (data?.permissions ?? []) as string[];
+    },
+    enabled: !!customRoleId,
+  });
+
+  const isAdmin = profile?.role === "admin";
+
+  const permissions: string[] = useMemo(() => {
+    if (!userId) return [];
+    if (isAdmin) {
+      return AVAILABLE_PERMISSIONS.map((p) => permissionKey(p.resource, p.action));
+    }
+    if (Array.isArray(rolePermissions) && rolePermissions.length > 0) {
+      return rolePermissions;
+    }
+    return Array.isArray(settings?.permissions) ? settings.permissions : [];
+  }, [userId, isAdmin, rolePermissions, settings?.permissions]);
+
+  const hasPermission = useMemo(
+    () =>
+      (key: string): boolean => {
+        if (!userId) return false;
+        if (isAdmin) return true;
+        return permissions.includes(key);
+      },
+    [userId, isAdmin, permissions]
+  );
+
+  const hasAnyPermission = useMemo(
+    () =>
+      (keys: string[]): boolean => {
+        return keys.some((k) => hasPermission(k));
+      },
+    [hasPermission]
+  );
+
+  return {
+    permissions,
+    hasPermission,
+    hasAnyPermission,
+    isAdmin,
+    isLoading: !!userId && !isAdmin && (settingsLoading || (!!customRoleId && roleLoading)),
+  };
+}

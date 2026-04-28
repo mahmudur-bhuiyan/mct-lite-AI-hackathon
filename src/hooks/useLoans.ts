@@ -1,0 +1,295 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { queryKeys, invalidateKeys } from "@/lib/cache";
+import { toast } from "sonner";
+import type { Json } from "@/integrations/supabase/types";
+import { logCrud } from "@/lib/activity-logger";
+
+export interface Loan {
+  id: string;
+  loan_number: string;
+  borrower_id: string;
+  loan_officer_id: string;
+  product_id: string | null;
+  program_id: string | null;
+  branch_id: string | null;
+  underwriter_id: string | null;
+  status: string;
+  loan_amount: number | null;
+  appraised_value: number | null;
+  ltv: number | null;
+  credit_score: number | null;
+  dti: number | null;
+  purpose: string | null;
+  occupancy_type: string | null;
+  property_address: string | null;
+  property_city: string | null;
+  property_state: string | null;
+  property_postal_code: string | null;
+  lock_date: string | null;
+  lock_expiration_date: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  data_source: string | null;
+  external_id: string | null;
+  api_payload: Json | null;
+  borrowers?:
+    | { first_name?: string; last_name?: string; email?: string }
+    | { first_name?: string; last_name?: string; email?: string }[]
+    | null;
+  /** Present when list query embeds `loan_risk_scores` (one-to-one). */
+  loan_risk_scores?: {
+    risk_level: string;
+    overall_risk_score: number;
+  } | null;
+}
+
+export interface LoanInsert {
+  loan_number: string;
+  borrower_id: string;
+  loan_officer_id: string;
+  product_id?: string | null;
+  program_id?: string | null;
+  branch_id?: string | null;
+  underwriter_id?: string | null;
+  status?: string;
+  loan_amount?: number | null;
+  appraised_value?: number | null;
+  ltv?: number | null;
+  credit_score?: number | null;
+  dti?: number | null;
+  purpose?: string | null;
+  occupancy_type?: string | null;
+  property_address?: string | null;
+  property_city?: string | null;
+  property_state?: string | null;
+  property_postal_code?: string | null;
+  lock_date?: string | null;
+  lock_expiration_date?: string | null;
+  data_source?: string | null;
+  external_id?: string | null;
+  api_payload?: Json | null;
+}
+
+export const LOANS_PAGE_SIZE = 25;
+
+export interface LoansPaginatedResult {
+  rows: Loan[];
+  totalCount: number;
+}
+
+interface LoanQueryFilters {
+  search?: string;
+  status?: string;
+  page?: number;
+  dataSource?: string;
+}
+
+async function fetchLoans(filters?: LoanQueryFilters): Promise<LoansPaginatedResult> {
+  const page = filters?.page;
+  const paginated = typeof page === "number";
+
+  let query = supabase
+    .from("loans")
+    .select(
+      "*, borrowers(first_name, last_name, email), loan_risk_scores(risk_level, overall_risk_score)",
+      { count: paginated ? "exact" : undefined },
+    )
+    .order("created_at", { ascending: false });
+
+  if (filters?.status) query = query.eq("status", filters.status);
+  if (filters?.dataSource?.trim()) query = query.eq("data_source", filters.dataSource.trim());
+  if (filters?.search?.trim()) {
+    query = query.ilike("loan_number", `%${filters.search.trim()}%`);
+  }
+
+  if (paginated) {
+    const from = (page - 1) * LOANS_PAGE_SIZE;
+    const to = from + LOANS_PAGE_SIZE - 1;
+    query = query.range(from, to);
+  }
+
+  const { data, error, count } = await query;
+  if (error) throw error;
+  const rows = (data ?? []) as Record<string, unknown>[];
+  const mapped = rows.map((row) => {
+    const raw = row.loan_risk_scores;
+    const loan_risk_scores = Array.isArray(raw)
+      ? (raw[0] as Loan["loan_risk_scores"]) ?? null
+      : (raw as Loan["loan_risk_scores"]) ?? null;
+    return { ...row, loan_risk_scores } as Loan;
+  });
+  return { rows: mapped, totalCount: count ?? mapped.length };
+}
+
+export function useLoans(filters?: { search?: string; status?: string; page?: number }) {
+  return useQuery({
+    queryKey: queryKeys.loans.list({ search: filters?.search, status: filters?.status, page: filters?.page }),
+    queryFn: () => fetchLoans(filters),
+  });
+}
+
+export function useLoansBySource(source: string, filters?: { page?: number; search?: string; status?: string }) {
+  return useQuery({
+    queryKey: ["loans-by-source", source, filters?.page ?? null, filters?.search ?? "", filters?.status ?? ""],
+    queryFn: () => fetchLoans({ ...filters, dataSource: source }),
+    enabled: Boolean(source?.trim()),
+  });
+}
+
+export function useLoan(id: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.loans.detail(id ?? ""),
+    queryFn: async (): Promise<Loan | null> => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from("loans")
+        .select("*, borrowers(*)")
+        .eq("id", id)
+        .single();
+      if (error) throw error;
+      return data as Loan;
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCreateLoan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: LoanInsert) => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      let branchId = input.branch_id ?? null;
+      if (!branchId && user?.id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("branch_id")
+          .eq("id", user.id)
+          .single();
+        branchId = profile?.branch_id ?? null;
+      }
+
+      const { data, error } = await supabase
+        .from("loans")
+        .insert({
+          loan_number: input.loan_number,
+          borrower_id: input.borrower_id,
+          loan_officer_id: input.loan_officer_id,
+          product_id: input.product_id,
+          program_id: input.program_id,
+          branch_id: branchId,
+          status: input.status ?? "draft",
+          loan_amount: input.loan_amount,
+          appraised_value: input.appraised_value,
+          ltv: input.ltv,
+          credit_score: input.credit_score,
+          dti: input.dti,
+          purpose: input.purpose,
+          occupancy_type: input.occupancy_type,
+          property_address: input.property_address,
+          property_city: input.property_city,
+          property_state: input.property_state,
+          property_postal_code: input.property_postal_code,
+          lock_date: input.lock_date,
+          lock_expiration_date: input.lock_expiration_date,
+          data_source: input.data_source,
+          external_id: input.external_id,
+          api_payload: input.api_payload,
+          created_by: user?.id ?? null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as Loan;
+    },
+    onSuccess: (createdLoan) => {
+      invalidateKeys.loans(queryClient);
+      logCrud("create", "loan", createdLoan.id, { loan_number: createdLoan.loan_number });
+      toast.success("Loan created");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+}
+
+export function useUpdateLoan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<LoanInsert>;
+      silent?: boolean;
+    }) => {
+      const { data: out, error } = await supabase
+        .from("loans")
+        .update(data as any)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return out as Loan;
+    },
+    onSuccess: (updatedLoan, variables) => {
+      invalidateKeys.loans(queryClient);
+      logCrud("update", "loan", updatedLoan.id, { loan_number: updatedLoan.loan_number });
+      if (!variables.silent) toast.success("Loan updated");
+    },
+    onError: (e) => {
+      toast.error(e.message);
+    },
+  });
+}
+
+export interface LoanProduct {
+  id: string;
+  product_name: string;
+  product_type: string;
+  term_months: number;
+  rate_type: string;
+  is_active: boolean;
+}
+
+export interface LoanProgram {
+  id: string;
+  product_id: string;
+  program_code: string;
+  program_name: string;
+  is_active: boolean;
+}
+
+export function useLoanProducts() {
+  return useQuery({
+    queryKey: ["loan_products"] as const,
+    queryFn: async (): Promise<LoanProduct[]> => {
+      const { data, error } = await supabase
+        .from("loan_products")
+        .select("id, product_name, product_type, term_months, rate_type, is_active")
+        .eq("is_active", true)
+        .order("product_name");
+      if (error) throw error;
+      return (data ?? []) as LoanProduct[];
+    },
+  });
+}
+
+export function useLoanPrograms(productId?: string | null) {
+  return useQuery({
+    queryKey: ["loan_programs", productId] as const,
+    queryFn: async (): Promise<LoanProgram[]> => {
+      let query = supabase
+        .from("loan_programs")
+        .select("id, product_id, program_code, program_name, is_active")
+        .eq("is_active", true)
+        .order("program_name");
+      if (productId) query = query.eq("product_id", productId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data ?? []) as LoanProgram[];
+    },
+    enabled: true,
+  });
+}

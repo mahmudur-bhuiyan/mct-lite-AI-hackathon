@@ -16,6 +16,13 @@ const noopMutation = {
   reset: () => {},
 };
 
+export const integrationSettingsKeys = {
+  all: ["integration-settings-stub"] as const,
+  lists: () => ["integration-settings-stub", "list"] as const,
+  detail: (id?: string) => ["integration-settings-stub", "detail", id ?? ""] as const,
+  byProvider: (provider?: string) => ["integration-settings-stub", "provider", provider ?? ""] as const,
+};
+
 export function useIntegrationSetting(_provider?: string) {
   return useQuery({ queryKey: ["integration-setting-stub", _provider], queryFn: async () => null, enabled: false, initialData: null });
 }

@@ -248,6 +248,8 @@ const App = () => (
                   <Route path="/email-intelligence" element={<EmailIntelligence />} />
                   <Route path="/email-intelligence/callback" element={<EmailIntelligenceCallback />} />
                 </Route>
+
+                <Route element={<ModuleRoute requiresModule="loans" requiredPermission="loans:import" />}>
                   <Route path="/loans/import" element={<LoanImport />} />
                 </Route>
 

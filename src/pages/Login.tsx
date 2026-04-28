@@ -1,11 +1,26 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Brain } from "lucide-react";
+import { Loader2, Brain, Shield, Briefcase, User as UserIcon } from "lucide-react";
+
+type DemoRole = "admin" | "loan_officer" | "user";
+
+const DEMO_ACCOUNTS: { role: DemoRole; label: string; email: string; password: string; route: string; icon: any }[] = [
+  { role: "admin",        label: "Admin",        email: "admin@demo.co", password: "DemoAdmin!2026", route: "/admin",     icon: Shield },
+  { role: "loan_officer", label: "Loan Officer", email: "lo@demo.co",    password: "DemoLO!2026",    route: "/dashboard", icon: Briefcase },
+  { role: "user",         label: "User",         email: "user@demo.co",  password: "DemoU!2026",     route: "/knowledge", icon: UserIcon },
+];
+
+function routeForRole(role: string | undefined): string {
+  if (role === "admin" || role === "moderator") return "/admin";
+  if (role === "loan_officer") return "/dashboard";
+  return "/knowledge";
+}
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -15,27 +30,29 @@ export default function Login() {
   const { signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
 
+  const resolveRoleAndNavigate = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id;
+    let target = "/dashboard";
+    if (uid) {
+      const { data: roleRow } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", uid)
+        .maybeSingle();
+      target = routeForRole(roleRow?.role as string | undefined);
+    }
+    navigate(target, { replace: true });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
-    console.log('📝 [LOGIN PAGE] Form submitted');
-    console.log('📝 [LOGIN PAGE] Email:', email);
-    console.log('📝 [LOGIN PAGE] Password length:', password.length);
-
     try {
-      console.log('📝 [LOGIN PAGE] Calling signIn...');
       await signIn(email, password);
-      console.log('✅ [LOGIN PAGE] Sign in successful, navigating to dashboard');
-      navigate("/dashboard");
+      await resolveRoleAndNavigate();
     } catch (error: any) {
-      console.error("❌ [LOGIN PAGE] Login error:", {
-        message: error.message,
-        name: error.name,
-        status: error.status,
-        fullError: error
-      });
       setError(error.message || "Failed to sign in");
     } finally {
       setLoading(false);
@@ -49,6 +66,27 @@ export default function Login() {
     } catch (error: any) {
       console.error("Google sign in error:", error);
       setError(error.message || "Failed to sign in with Google");
+      setLoading(false);
+    }
+  };
+
+  const fillDemo = (acct: typeof DEMO_ACCOUNTS[number]) => {
+    setEmail(acct.email);
+    setPassword(acct.password);
+    setError("");
+  };
+
+  const loginAsDemo = async (acct: typeof DEMO_ACCOUNTS[number]) => {
+    setEmail(acct.email);
+    setPassword(acct.password);
+    setError("");
+    setLoading(true);
+    try {
+      await signIn(acct.email, acct.password);
+      navigate(acct.route, { replace: true });
+    } catch (error: any) {
+      setError(error.message || "Failed to sign in");
+    } finally {
       setLoading(false);
     }
   };
@@ -80,40 +118,30 @@ export default function Login() {
               )}
               
               {/* Demo Credentials */}
-              <div className="rounded-lg border border-border bg-muted/50 p-3">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Demo Credentials</p>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Admin:</span>
-                    <button
-                      type="button"
-                      onClick={() => { setEmail("admin@mortgagecontroltower.com"); setPassword("Admin@123"); }}
-                      className="font-mono text-foreground hover:text-primary"
-                    >
-                      admin@mortgagecontroltower.com
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Loan Officer:</span>
-                    <button
-                      type="button"
-                      onClick={() => { setEmail("loanofficer@mortgagecontroltower.com"); setPassword("LoanOfficer@123"); }}
-                      className="font-mono text-foreground hover:text-primary"
-                    >
-                      loanofficer@mortgagecontroltower.com
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">User:</span>
-                    <button
-                      type="button"
-                      onClick={() => { setEmail("demo@mortgagecontroltower.com"); setPassword("Demo@123"); }}
-                      className="font-mono text-foreground hover:text-primary"
-                    >
-                      demo@mortgagecontroltower.com
-                    </button>
-                  </div>
-                  <p className="mt-1 text-muted-foreground/70">Click email to auto-fill credentials</p>
+              <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground">Demo Accounts</p>
+                  <span className="text-[10px] text-muted-foreground/70">click to login · long-press to fill</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {DEMO_ACCOUNTS.map((acct) => {
+                    const Icon = acct.icon;
+                    return (
+                      <button
+                        key={acct.email}
+                        type="button"
+                        disabled={loading}
+                        onClick={() => loginAsDemo(acct)}
+                        onContextMenu={(e) => { e.preventDefault(); fillDemo(acct); }}
+                        className="group flex flex-col items-center gap-1 rounded-md border border-border bg-card p-2 text-center transition hover:border-primary hover:bg-primary/5 disabled:opacity-50"
+                        title={`${acct.email} → ${acct.route}`}
+                      >
+                        <Icon className="h-4 w-4 text-primary" />
+                        <span className="text-xs font-medium text-foreground">{acct.label}</span>
+                        <span className="font-mono text-[10px] text-muted-foreground truncate w-full">{acct.email}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

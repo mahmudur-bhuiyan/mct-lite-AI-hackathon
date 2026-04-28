@@ -282,9 +282,11 @@ const App = () => (
                 <Route path="/pricing" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/pricing/*" element={<Navigate to="/dashboard" replace />} />
 
-                {/* AI Agent Browse */}
-                <Route path="/agents" element={<AgentsBrowse />} />
-                <Route path="/agents/:slug" element={<AgentDetail />} />
+                {/* AI Agent Browse — Lite-hidden (admin can re-enable) */}
+                <Route element={<ModuleRoute requiresFeatureFlag="enableAIAgents" />}>
+                  <Route path="/agents" element={<AgentsBrowse />} />
+                  <Route path="/agents/:slug" element={<AgentDetail />} />
+                </Route>
 
                 {/* Action Items (gated by agent enabled in component) */}
                 <Route path="/action-items" element={<ActionItems />} />
@@ -295,7 +297,9 @@ const App = () => (
                 <Route element={<ModuleRoute requiresFeatureFlag="enableNotifications" />}>
                   <Route path="/notifications" element={<Notifications />} />
                 </Route>
-                <Route path="/feedback" element={<Feedback />} />
+                <Route element={<ModuleRoute requiresFeatureFlag="enableFeedback" />}>
+                  <Route path="/feedback" element={<Feedback />} />
+                </Route>
 
                 {/* AI chat route (permission-controlled and feature-flagged) */}
                 <Route

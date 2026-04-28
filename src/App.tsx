@@ -179,10 +179,13 @@ const App = () => (
             <Route element={<ProtectedRoute />}>
               <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/pipeline" element={<Navigate to="/pipeline/hubspot" replace />} />
-                <Route path="/pipeline/hubspot" element={<PipelinePlaceholder />} />
-                <Route path="/pipeline/encompass" element={<PipelineEncompass />} />
-                <Route path="/manager" element={<Navigate to="/pipeline" replace />} />
+                {/* Pipeline views — gated behind module flag for Lite */}
+                <Route element={<ModuleRoute requiresModule="pipeline_views" />}>
+                  <Route path="/pipeline" element={<Navigate to="/pipeline/hubspot" replace />} />
+                  <Route path="/pipeline/hubspot" element={<PipelinePlaceholder />} />
+                  <Route path="/pipeline/encompass" element={<PipelineEncompass />} />
+                  <Route path="/manager" element={<Navigate to="/pipeline" replace />} />
+                </Route>
 
                 {/* Clients */}
                 <Route element={<ModuleRoute requiredPermission="clients:read" />}>
@@ -225,9 +228,11 @@ const App = () => (
                   <Route path="/loans/new" element={<LoanForm />} />
                   <Route path="/loans/:id" element={<LoanDetail />} />
                   <Route path="/loans/:id/edit" element={<LoanForm />} />
+                </Route>
+
+                {/* Communication Center / Email Intelligence — Lite-hidden */}
+                <Route element={<ModuleRoute requiresModule="communication_center" />}>
                   <Route path="/communication-center" element={<CommunicationCenter />} />
-                  <Route path="/email-intelligence" element={<EmailIntelligence />} />
-                  <Route path="/email-intelligence/callback" element={<EmailIntelligenceCallback />} />
                   <Route
                     path="/document-generation"
                     element={<RedirectWithSearch to="/communication-center" />}

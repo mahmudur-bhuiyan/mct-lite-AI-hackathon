@@ -64,19 +64,12 @@ const navigationItems: SidebarItem[] = [
     href: "/dashboard",
     icon: LayoutDashboard,
   },
-  // {
-  //   title: "Tasks",
-  //   href: "/tasks",
-  //   icon: CheckSquare,
-  //   permission: permissionKey("tasks", "read"),
-  //   featureFlag: "enableTasks",
-  // },
   {
-    title: "Knowledge Base",
-    href: "/knowledge",
-    icon: BookOpen,
-    permission: permissionKey("knowledge", "read"),
-    featureFlag: "enableKnowledgeBase",
+    title: "Loans",
+    href: "/loans",
+    icon: Banknote,
+    permission: permissionKey("loans", "read"),
+    module: "loans",
   },
   {
     title: "Borrowers",
@@ -86,61 +79,25 @@ const navigationItems: SidebarItem[] = [
     module: "loans",
   },
   {
-    title: "Loans",
-    href: "/loans",
-    icon: Banknote,
-    permission: permissionKey("loans", "read"),
-    module: "loans",
-  },
-  {
-    title: "Operations calendar",
-    href: "/calendar",
-    icon: CalendarDays,
-    permission: permissionKey("loans", "read"),
-    module: "loans",
-  },
-  {
-    title: "Pipeline",
-    href: "/pipeline",
-    icon: LayoutDashboard,
-    children: [
-      { title: "HubSpot", href: "/pipeline/hubspot" },
-      { title: "Encompass", href: "/pipeline/encompass" },
-    ],
-    // Visible only for users with manager-level scope (admin + branch manager).
-    // Additional RLS still enforces data scope on the backend.
-    adminOnly: false,
-  },
-  {
     title: "Action Items",
     href: "/action-items",
     icon: ListTodo,
   },
   {
-    title: "Email Intelligence",
-    href: "/email-intelligence",
-    icon: Inbox,
-    permission: permissionKey("loans", "read"),
-    module: "loans",
-    agentSlug: EMAIL_INTELLIGENCE_AGENT_SLUG,
+    title: "Knowledge Base",
+    href: "/knowledge",
+    icon: BookOpen,
+    permission: permissionKey("knowledge", "read"),
+    featureFlag: "enableKnowledgeBase",
   },
   {
-    title: "Communication Center",
-    href: "/communication-center",
-    icon: Mail,
-    permission: permissionKey("loans", "read"),
-    module: "loans",
-    agentSlug: DOCUMENT_GENERATION_AGENT_SLUG,
+    title: "Notifications",
+    href: "/notifications",
+    icon: Inbox,
   },
 ];
 
 const aiToolsItems: SidebarItem[] = [
-  {
-    title: "AI Agents",
-    href: "/agents",
-    icon: Bot,
-    isAI: true,
-  },
   {
     title: "AI Chat",
     href: "/ai",
@@ -148,12 +105,6 @@ const aiToolsItems: SidebarItem[] = [
     isAI: true,
     permission: permissionKey("ai_chat", "read"),
     featureFlag: "enableAIChat",
-  },
-  {
-    title: "Feedback",
-    href: "/feedback",
-    icon: MessageSquare,
-    featureFlag: "enableFeedback",
   },
 ];
 

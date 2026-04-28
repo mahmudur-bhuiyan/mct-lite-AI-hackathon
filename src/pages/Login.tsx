@@ -61,7 +61,7 @@ export default function Login() {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-sm">
             <Brain className="h-7 w-7 text-primary-foreground" />
           </div>
-          <h1 className="text-xl font-semibold text-foreground">Control Tower</h1>
+          <h1 className="text-xl font-semibold text-foreground">MCT Lite</h1>
         </div>
 
         <Card className="shadow-premium">
@@ -87,50 +87,30 @@ export default function Login() {
                     <span className="text-muted-foreground">Admin:</span>
                     <button
                       type="button"
-                      onClick={() => { setEmail("admin@collabai.software"); setPassword("Admin@123"); }}
+                      onClick={() => { setEmail("admin@mortgagecontroltower.com"); setPassword("Admin@123"); }}
                       className="font-mono text-foreground hover:text-primary"
                     >
-                      admin@collabai.software
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Moderator:</span>
-                    <button
-                      type="button"
-                      onClick={() => { setEmail("moderator@collabai.software"); setPassword("Moderator@123"); }}
-                      className="font-mono text-foreground hover:text-primary"
-                    >
-                      moderator@collabai.software
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">User:</span>
-                    <button
-                      type="button"
-                      onClick={() => { setEmail("demo@collabai.software"); setPassword("Demo@123"); }}
-                      className="font-mono text-foreground hover:text-primary"
-                    >
-                      demo@collabai.software
+                      admin@mortgagecontroltower.com
                     </button>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Loan Officer:</span>
                     <button
                       type="button"
-                      onClick={() => { setEmail("loanofficer@collabai.software"); setPassword("LoanOfficer@123"); }}
+                      onClick={() => { setEmail("loanofficer@mortgagecontroltower.com"); setPassword("LoanOfficer@123"); }}
                       className="font-mono text-foreground hover:text-primary"
                     >
-                      loanofficer@collabai.software
+                      loanofficer@mortgagecontroltower.com
                     </button>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Branch Manager:</span>
+                    <span className="text-muted-foreground">User:</span>
                     <button
                       type="button"
-                      onClick={() => { setEmail("branchmanager@collabai.software"); setPassword("BranchManager@123"); }}
+                      onClick={() => { setEmail("demo@mortgagecontroltower.com"); setPassword("Demo@123"); }}
                       className="font-mono text-foreground hover:text-primary"
                     >
-                      branchmanager@collabai.software
+                      demo@mortgagecontroltower.com
                     </button>
                   </div>
                   <p className="mt-1 text-muted-foreground/70">Click email to auto-fill credentials</p>

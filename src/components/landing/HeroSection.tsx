@@ -35,15 +35,7 @@ export function HeroSection() {
               Close More Loans.
             </h1>
             <p className="mt-2 text-sm font-medium text-muted-foreground">
-              Part of the{" "}
-              <a 
-                href="https://collabai.software/industry/mortgage" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                CollabAI Agentic Workforce
-              </a>
+              Mortgage Control Tower Lite
             </p>
 
             {/* Subheadline */}
@@ -71,25 +63,25 @@ export function HeroSection() {
 
             {/* CTAs */}
             <div className="mt-10 flex flex-wrap items-center gap-4">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="h-14 rounded-full px-8 text-base font-semibold shadow-lg bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
                 asChild
               >
-                <a href="https://collabai.software/try-demo" target="_blank" rel="noopener noreferrer">
-                  Book a Demo
+                <Link to="/signup">
+                  Get Started
                   <ArrowRight className="ml-2 h-4 w-4" />
-                </a>
+                </Link>
               </Button>
-              <Button 
-                size="lg" 
-                variant="outline" 
+              <Button
+                size="lg"
+                variant="outline"
                 className="h-14 rounded-full px-8 text-base font-semibold border-primary/30 hover:bg-mortgage-teal-light"
                 asChild
               >
                 <Link to="/login">
                   <Play className="mr-2 h-4 w-4 text-primary" />
-                  See It in Action
+                  Sign In
                 </Link>
               </Button>
             </div>

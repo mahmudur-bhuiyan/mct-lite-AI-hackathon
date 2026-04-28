@@ -76,3 +76,42 @@ export function groupPermissionsByResource(): Record<string, PermissionDef[]> {
   });
   return grouped;
 }
+
+/**
+ * MCT Lite: the three system roles and their default permission sets.
+ *
+ * - admin   : every permission (handled separately in useEffectivePermissions).
+ * - loan_officer : pipeline operator — own loans, borrowers, knowledge, AI chat, action items.
+ * - user    : read-only basic — knowledge + AI chat + notifications.
+ *
+ * These act as the fallback when a user has no custom_role_id and no per-user
+ * permission settings (typical for fresh signups).
+ */
+export type LiteRole = "admin" | "loan_officer" | "user";
+
+export const LITE_ROLE_PERMISSIONS: Record<LiteRole, string[]> = {
+  admin: AVAILABLE_PERMISSIONS.map((p) => permissionKey(p.resource, p.action)),
+  loan_officer: [
+    permissionKey("loans", "read"),
+    permissionKey("loans", "create"),
+    permissionKey("loans", "update"),
+    permissionKey("loans", "export"),
+    permissionKey("borrowers", "read"),
+    permissionKey("borrowers", "create"),
+    permissionKey("borrowers", "update"),
+    permissionKey("knowledge", "read"),
+    permissionKey("ai_chat", "read"),
+    permissionKey("tasks", "read"),
+    permissionKey("tasks", "create"),
+    permissionKey("tasks", "update"),
+  ],
+  user: [
+    permissionKey("knowledge", "read"),
+    permissionKey("ai_chat", "read"),
+  ],
+};
+
+export function isLiteRole(role: string | null | undefined): role is LiteRole {
+  return role === "admin" || role === "loan_officer" || role === "user";
+}
+

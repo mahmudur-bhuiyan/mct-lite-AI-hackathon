@@ -109,21 +109,18 @@ export function ModuleRoute({
   return children ? <>{children}</> : <Outlet />;
 }
 
-// Helper function to check role hierarchy
+// MCT Lite: explicit role check for the three system roles.
+//   admin         → satisfies any required role
+//   loan_officer  → satisfies "loan_officer" or "user"
+//   user          → satisfies only "user"
+// Legacy "moderator" is treated as admin for backward compatibility.
 function checkRole(
   userRole: string | undefined,
   requiredRole: "admin" | "moderator" | "user"
 ): boolean {
   if (!userRole) return false;
-
-  const roleHierarchy: Record<string, number> = {
-    user: 1,
-    moderator: 2,
-    admin: 3,
-  };
-
-  const userRoleLevel = roleHierarchy[userRole] || 0;
-  const requiredRoleLevel = roleHierarchy[requiredRole] || 0;
-
-  return userRoleLevel >= requiredRoleLevel;
+  if (userRole === "admin" || userRole === "moderator") return true;
+  if (userRole === "loan_officer") return requiredRole !== "admin" && requiredRole !== "moderator";
+  if (userRole === "user") return requiredRole === "user";
+  return false;
 }

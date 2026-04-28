@@ -373,10 +373,10 @@ export function AppSidebar() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-base font-bold text-white tracking-tight">
-                    Control Tower
+                    MCT Lite
                   </span>
                   <span className="text-xs text-white/70 font-medium">
-                    {companyName || "Mortgage Co."}
+                    {companyName || "Mortgage Control Tower Lite"}
                   </span>
                 </div>
               </Link>

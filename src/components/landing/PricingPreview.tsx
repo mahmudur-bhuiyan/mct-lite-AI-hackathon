@@ -1,4 +1,5 @@
-import { Check, X, Minus } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const comparisonData = [
@@ -104,7 +105,7 @@ export function PricingPreview() {
             Compare Your <span className="text-primary">Options</span>
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            See how Mortgage Control Tower stacks up against the tools you're currently using to manage 
+            See how MCT Lite stacks up against the tools you're currently using to manage
             your mortgage pipeline.
           </p>
         </div>
@@ -118,7 +119,7 @@ export function PricingPreview() {
             <div className="text-center text-muted-foreground">LOS Reports</div>
             <div className="text-center">
               <span className="inline-flex items-center rounded-full bg-gradient-to-r from-primary to-secondary px-3 py-1 text-primary-foreground">
-                MCT
+                MCT Lite
               </span>
             </div>
           </div>
@@ -148,22 +149,23 @@ export function PricingPreview() {
         {/* CTA */}
         <div className="mt-12 text-center">
           <p className="text-muted-foreground mb-6">
-            Ready to see Mortgage Control Tower in action? Get a personalized demo for your team.
+            Ready to see MCT Lite in action? Sign up and start streamlining your pipeline today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="h-14 rounded-full px-10 text-base font-semibold shadow-lg bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90"
+              asChild
             >
-              Request a Demo
+              <Link to="/signup">Get Started</Link>
             </Button>
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               variant="outline"
               className="h-14 rounded-full px-10 text-base font-semibold border-2 border-primary hover:bg-primary/5"
-              onClick={() => window.open("https://collabai.software/try-demo", "_blank", "noopener,noreferrer")}
+              asChild
             >
-              See Product Overview
+              <Link to="/login">Sign In</Link>
             </Button>
           </div>
         </div>

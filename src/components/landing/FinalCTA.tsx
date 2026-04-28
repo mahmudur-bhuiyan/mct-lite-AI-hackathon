@@ -27,26 +27,26 @@ export function FinalCTA() {
 
           {/* CTAs */}
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               variant="secondary"
               className="h-14 rounded-full px-10 text-base font-semibold shadow-lg bg-white text-secondary hover:bg-white/90"
               asChild
             >
-              <a href="https://collabai.software/try-demo" target="_blank" rel="noopener noreferrer">
-                Book a Demo
+              <Link to="/signup">
+                Get Started
                 <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
+              </Link>
             </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
+            <Button
+              size="lg"
+              variant="outline"
               className="h-14 rounded-full px-10 text-base font-semibold border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 bg-transparent"
               asChild
             >
               <Link to="/login">
                 <Play className="mr-2 h-4 w-4" />
-                See It in Action
+                Sign In
               </Link>
             </Button>
           </div>

@@ -19,7 +19,7 @@ const pricingTiers = [
       "Real-time Dashboard",
       "Lock Expiry Alerts",
       "SLA Monitoring",
-      "CollabAI Security",
+      "Enterprise-Grade Security",
       "Email Support",
     ],
     cta: "Get Started",
@@ -75,7 +75,7 @@ export function PricingCards() {
             Simple, Transparent Pricing
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Start with 10 agents and scale as your operation grows. All plans include CollabAI's enterprise-grade security.
+            Start with 10 agents and scale as your operation grows. All plans include enterprise-grade security.
           </p>
         </div>
         

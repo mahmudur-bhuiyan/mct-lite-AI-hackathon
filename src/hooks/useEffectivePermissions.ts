@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserPermissionSettings } from "@/hooks/useUserPermissionSettings";
 import { supabase } from "@/lib/supabase";
-import { AVAILABLE_PERMISSIONS, permissionKey } from "@/lib/permissions";
+import { AVAILABLE_PERMISSIONS, permissionKey, LITE_ROLE_PERMISSIONS, isLiteRole } from "@/lib/permissions";
 
 /**
  * Effective permissions for the current user:
@@ -56,8 +56,15 @@ export function useEffectivePermissions() {
     if (Array.isArray(rolePermissions) && rolePermissions.length > 0) {
       return rolePermissions;
     }
-    return Array.isArray(settings?.permissions) ? settings.permissions : [];
-  }, [userId, isAdmin, rolePermissions, settings?.permissions]);
+    if (Array.isArray(settings?.permissions) && settings.permissions.length > 0) {
+      return settings.permissions;
+    }
+    // MCT Lite fallback: derive default permissions from the system role.
+    if (isLiteRole(profile?.role)) {
+      return LITE_ROLE_PERMISSIONS[profile.role as "loan_officer" | "user" | "admin"];
+    }
+    return [];
+  }, [userId, isAdmin, rolePermissions, settings?.permissions, profile?.role]);
 
   const hasPermission = useMemo(
     () =>

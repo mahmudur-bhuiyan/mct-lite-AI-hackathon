@@ -3,6 +3,7 @@ import { useAppConfig } from "@/hooks/useAppConfig";
 
 interface BrandingContextType {
   companyName: string;
+  shortName: string;
   tagline: string;
   supportEmail: string;
   logoUrl?: string;
@@ -15,8 +16,9 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   const { data: config, isLoading } = useAppConfig();
 
   const value: BrandingContextType = {
-    companyName: config?.branding?.companyName || "Mortgage Control Tower",
-    tagline: config?.branding?.tagline || "See every loan. Catch every risk.",
+    companyName: config?.branding?.companyName || "Mortgage Control Tower Lite",
+    shortName: (config?.branding as any)?.shortName || "MCT Lite",
+    tagline: config?.branding?.tagline || "Your loan pipeline. Simplified.",
     supportEmail: config?.branding?.supportEmail || "support@mortgagecontroltower.com",
     logoUrl: (config?.branding as any)?.logoUrl,
     isLoading,

@@ -1,3 +1,46 @@
 // MCT Lite: hidden-module stub. Original implementation references tables not in the Lite schema.
+// Provides no-op exports so imports resolve at build time. Hidden modules are gated at runtime.
 // @ts-nocheck
-export {};
+import { useQuery } from "@tanstack/react-query";
+
+const noopResult = { data: null, isLoading: false, isError: false, error: null, refetch: async () => ({ data: null }) };
+const noopListResult = { data: [], isLoading: false, isError: false, error: null, refetch: async () => ({ data: [] }) };
+const noopMutation = {
+  mutate: () => {},
+  mutateAsync: async () => null,
+  isPending: false,
+  isLoading: false,
+  isError: false,
+  isSuccess: false,
+  error: null,
+  reset: () => {},
+};
+
+export function useIntegrationSetting(_provider?: string) {
+  return useQuery({ queryKey: ["integration-setting-stub", _provider], queryFn: async () => null, enabled: false, initialData: null });
+}
+
+export function useIntegrationSettings() {
+  return useQuery({ queryKey: ["integration-settings-stub"], queryFn: async () => [], enabled: false, initialData: [] });
+}
+
+export function useUpdateIntegrationSetting() { return noopMutation; }
+export function useDeleteIntegrationSetting() { return noopMutation; }
+export function useTestIntegrationConnection() { return noopMutation; }
+export function useToggleIntegrationActive() { return noopMutation; }
+export function useSaveIntegrationSetting() { return noopMutation; }
+export function useCreateIntegrationSetting() { return noopMutation; }
+
+export type IntegrationSetting = {
+  id: string;
+  provider_name: string;
+  display_name: string;
+  is_active: boolean;
+  api_key?: string | null;
+  api_key_masked?: string | null;
+  config?: Record<string, any>;
+  validation_status?: string | null;
+  updated_at?: string;
+};
+
+export default useIntegrationSettings;

@@ -10,12 +10,12 @@ interface DemoUser {
   email: string;
   password: string;
   full_name: string;
-  role: "admin" | "moderator" | "user";
+  role: "admin" | "moderator" | "user" | "loan_officer";
 }
 
 const DEMO_USERS: DemoUser[] = [
   { email: "admin@demo.co", password: "DemoAdmin!2026", full_name: "Demo Admin", role: "admin" },
-  { email: "lo@demo.co",    password: "DemoLO!2026",    full_name: "Demo Loan Officer", role: "user" },
+  { email: "lo@demo.co",    password: "DemoLO!2026",    full_name: "Demo Loan Officer", role: "loan_officer" },
   { email: "user@demo.co",  password: "DemoU!2026",     full_name: "Demo User", role: "user" },
 ];
 

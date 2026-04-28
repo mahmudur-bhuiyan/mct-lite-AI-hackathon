@@ -28,8 +28,10 @@ export function useUpdateIntegrationSetting() { return noopMutation; }
 export function useDeleteIntegrationSetting() { return noopMutation; }
 export function useTestIntegrationConnection() { return noopMutation; }
 export function useToggleIntegrationActive() { return noopMutation; }
+export function useToggleIntegrationStatus() { return noopMutation; }
 export function useSaveIntegrationSetting() { return noopMutation; }
 export function useCreateIntegrationSetting() { return noopMutation; }
+export function useValidateIntegrationKey() { return noopMutation; }
 
 export type IntegrationSetting = {
   id: string;

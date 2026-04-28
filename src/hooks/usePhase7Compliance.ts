@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { queryKeys } from "@/lib/cache";
 
 export function useHmdaByLoan(loanId: string | undefined) {

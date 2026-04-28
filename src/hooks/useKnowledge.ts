@@ -4,7 +4,7 @@ import { KnowledgeEntryFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { logCrud } from "@/lib/activity-logger";
 
 export interface KnowledgeEntry {

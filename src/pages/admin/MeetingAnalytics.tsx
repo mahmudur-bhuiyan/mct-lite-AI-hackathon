@@ -16,7 +16,7 @@ import {
   Sparkles,
   Loader2,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 function hasAiSummaryMetadata(metadata: unknown): boolean {
   if (!metadata || typeof metadata !== "object") return false;

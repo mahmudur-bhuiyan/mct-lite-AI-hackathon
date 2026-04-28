@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { queryKeys } from "@/lib/cache";
 import { getCalendarEvents, type OutlookCalendarEvent } from "@/lib/microsoftTeamsMeetingService";
 

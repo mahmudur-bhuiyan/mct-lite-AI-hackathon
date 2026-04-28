@@ -19,7 +19,7 @@ import { Link } from "react-router-dom";
 import { useAdminSystemHealth } from "@/hooks/useAdminSystemHealth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { getSupabaseDashboardLinks } from "@/integrations/supabase/public-config";
 import { useAuth } from "@/contexts/AuthContext";
 

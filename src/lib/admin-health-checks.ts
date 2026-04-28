@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 /**
  * Lightweight client-side probes for admin dashboards (no fake uptime).

@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAppSidebar } from "@/contexts/AppSidebarContext";
 import { useAdminSidebar } from "@/contexts/AdminSidebarContext";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { getInitials } from "@/lib/utils";
 import { format } from "date-fns";

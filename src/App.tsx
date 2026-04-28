@@ -243,17 +243,21 @@ const App = () => (
                   />
                 </Route>
 
-                <Route element={<ModuleRoute requiresModule="loans" requiredPermission="loans:import" />}>
+                {/* Email Intelligence — Lite-hidden */}
+                <Route element={<ModuleRoute requiresModule="email_intelligence" />}>
+                  <Route path="/email-intelligence" element={<EmailIntelligence />} />
+                  <Route path="/email-intelligence/callback" element={<EmailIntelligenceCallback />} />
+                </Route>
                   <Route path="/loans/import" element={<LoanImport />} />
                 </Route>
 
-                {/* Underwriting Queue */}
-                <Route element={<ModuleRoute requiresModule="loans" requiredPermission="loans:read" />}>
+                {/* Underwriting Queue — Lite-hidden */}
+                <Route element={<ModuleRoute requiresModule="underwriting_queue" requiredPermission="loans:read" />}>
                   <Route path="/underwriting" element={<UnderwritingQueue />} />
                 </Route>
 
-                {/* Document Review Queue */}
-                <Route element={<ModuleRoute requiresModule="loans" requiredPermission="loans:read" />}>
+                {/* Document Review Queue — Lite-hidden */}
+                <Route element={<ModuleRoute requiresModule="document_review" requiredPermission="loans:read" />}>
                   <Route path="/documents/review" element={<DocumentReviewQueue />} />
                 </Route>
 

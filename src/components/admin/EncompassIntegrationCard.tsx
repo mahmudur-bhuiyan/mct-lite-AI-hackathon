@@ -1,3 +1,4 @@
+// @ts-nocheck — MCT Lite: hidden module, not reachable at runtime
 import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

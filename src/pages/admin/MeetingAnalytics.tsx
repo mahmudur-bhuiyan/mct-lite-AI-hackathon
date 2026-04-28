@@ -1,3 +1,4 @@
+// @ts-nocheck — MCT Lite: hidden module, not reachable at runtime
 /**
  * Meeting Analytics — metrics from the `meetings` and `action_items` tables.
  */

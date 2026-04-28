@@ -179,10 +179,13 @@ const App = () => (
             <Route element={<ProtectedRoute />}>
               <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/pipeline" element={<Navigate to="/pipeline/hubspot" replace />} />
-                <Route path="/pipeline/hubspot" element={<PipelinePlaceholder />} />
-                <Route path="/pipeline/encompass" element={<PipelineEncompass />} />
-                <Route path="/manager" element={<Navigate to="/pipeline" replace />} />
+                {/* Pipeline views — gated behind module flag for Lite */}
+                <Route element={<ModuleRoute requiresModule="pipeline_views" />}>
+                  <Route path="/pipeline" element={<Navigate to="/pipeline/hubspot" replace />} />
+                  <Route path="/pipeline/hubspot" element={<PipelinePlaceholder />} />
+                  <Route path="/pipeline/encompass" element={<PipelineEncompass />} />
+                  <Route path="/manager" element={<Navigate to="/pipeline" replace />} />
+                </Route>
 
                 {/* Clients */}
                 <Route element={<ModuleRoute requiredPermission="clients:read" />}>
@@ -225,9 +228,11 @@ const App = () => (
                   <Route path="/loans/new" element={<LoanForm />} />
                   <Route path="/loans/:id" element={<LoanDetail />} />
                   <Route path="/loans/:id/edit" element={<LoanForm />} />
+                </Route>
+
+                {/* Communication Center / Email Intelligence — Lite-hidden */}
+                <Route element={<ModuleRoute requiresModule="communication_center" />}>
                   <Route path="/communication-center" element={<CommunicationCenter />} />
-                  <Route path="/email-intelligence" element={<EmailIntelligence />} />
-                  <Route path="/email-intelligence/callback" element={<EmailIntelligenceCallback />} />
                   <Route
                     path="/document-generation"
                     element={<RedirectWithSearch to="/communication-center" />}
@@ -238,17 +243,23 @@ const App = () => (
                   />
                 </Route>
 
+                {/* Email Intelligence — Lite-hidden */}
+                <Route element={<ModuleRoute requiresModule="email_intelligence" />}>
+                  <Route path="/email-intelligence" element={<EmailIntelligence />} />
+                  <Route path="/email-intelligence/callback" element={<EmailIntelligenceCallback />} />
+                </Route>
+
                 <Route element={<ModuleRoute requiresModule="loans" requiredPermission="loans:import" />}>
                   <Route path="/loans/import" element={<LoanImport />} />
                 </Route>
 
-                {/* Underwriting Queue */}
-                <Route element={<ModuleRoute requiresModule="loans" requiredPermission="loans:read" />}>
+                {/* Underwriting Queue — Lite-hidden */}
+                <Route element={<ModuleRoute requiresModule="underwriting_queue" requiredPermission="loans:read" />}>
                   <Route path="/underwriting" element={<UnderwritingQueue />} />
                 </Route>
 
-                {/* Document Review Queue */}
-                <Route element={<ModuleRoute requiresModule="loans" requiredPermission="loans:read" />}>
+                {/* Document Review Queue — Lite-hidden */}
+                <Route element={<ModuleRoute requiresModule="document_review" requiredPermission="loans:read" />}>
                   <Route path="/documents/review" element={<DocumentReviewQueue />} />
                 </Route>
 
@@ -271,9 +282,11 @@ const App = () => (
                 <Route path="/pricing" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/pricing/*" element={<Navigate to="/dashboard" replace />} />
 
-                {/* AI Agent Browse */}
-                <Route path="/agents" element={<AgentsBrowse />} />
-                <Route path="/agents/:slug" element={<AgentDetail />} />
+                {/* AI Agent Browse — Lite-hidden (admin can re-enable) */}
+                <Route element={<ModuleRoute requiresFeatureFlag="enableAIAgents" />}>
+                  <Route path="/agents" element={<AgentsBrowse />} />
+                  <Route path="/agents/:slug" element={<AgentDetail />} />
+                </Route>
 
                 {/* Action Items (gated by agent enabled in component) */}
                 <Route path="/action-items" element={<ActionItems />} />
@@ -284,7 +297,9 @@ const App = () => (
                 <Route element={<ModuleRoute requiresFeatureFlag="enableNotifications" />}>
                   <Route path="/notifications" element={<Notifications />} />
                 </Route>
-                <Route path="/feedback" element={<Feedback />} />
+                <Route element={<ModuleRoute requiresFeatureFlag="enableFeedback" />}>
+                  <Route path="/feedback" element={<Feedback />} />
+                </Route>
 
                 {/* AI chat route (permission-controlled and feature-flagged) */}
                 <Route

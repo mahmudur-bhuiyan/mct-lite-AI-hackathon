@@ -64,6 +64,70 @@ const quickShortcuts = [
 
 export default function Dashboard() {
   const { profile } = useAuth();
+  const role = profile?.role;
+
+  if (role === "loan_officer") return <LoanOfficerDashboard />;
+  if (role === "user") return <UserDashboard />;
+  return <FullDashboard />;
+}
+
+function UserDashboard() {
+  const { profile } = useAuth();
+  const greeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          {greeting()}, {profile?.full_name?.split(" ")[0] || "there"}
+        </h1>
+        <p className="mt-1 text-muted-foreground">Welcome to MCT Lite.</p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link to="/ai" className="group">
+          <Card className="h-full transition-shadow hover:shadow-md">
+            <CardContent className="flex items-start gap-4 p-5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                <FileText className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-foreground">Ask AI Chat</p>
+                <p className="text-sm text-muted-foreground">Get answers from your assistant</p>
+              </div>
+              <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to="/knowledge" className="group">
+          <Card className="h-full transition-shadow hover:shadow-md">
+            <CardContent className="flex items-start gap-4 p-5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                <Search className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-foreground">Knowledge Base</p>
+                <p className="text-sm text-muted-foreground">Browse articles & guides</p>
+              </div>
+              <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function LoanOfficerDashboard() {
+  // Loan officers see the full pipeline view but scoped via RLS in the underlying hooks.
+  return <FullDashboard />;
+}
+
+function FullDashboard() {
+  const { profile } = useAuth();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: recentActivity, isLoading: activityLoading } = useRecentActivity();
 

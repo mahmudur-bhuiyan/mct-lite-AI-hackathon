@@ -61,166 +61,28 @@ const sidebarGroups: SidebarGroup[] = [
   {
     title: "DASHBOARD",
     items: [
-      {
-        title: "Overview",
-        href: "/admin",
-        icon: LayoutDashboard,
-      },
+      { title: "Overview", href: "/admin", icon: LayoutDashboard },
     ],
   },
   {
     title: "USERS & ACCESS",
     items: [
-      {
-        title: "User Management",
-        href: "/admin/users",
-        icon: Users,
-      },
-      {
-        title: "Role Management",
-        href: "/admin/roles",
-        icon: Shield,
-      },
-      {
-        title: "Activity Logs",
-        href: "/admin/logs",
-        icon: Activity,
-      },
+      { title: "User Management", href: "/admin/users", icon: Users },
+      { title: "Role Management", href: "/admin/roles", icon: Shield },
     ],
   },
   {
-    title: "CONTENT & FEEDBACK",
+    title: "AI",
     items: [
-      {
-        title: "Feedback Management",
-        href: "/admin/feedback",
-        icon: MessageSquare,
-      },
-      {
-        title: "Meeting Analytics",
-        href: "/admin/meeting-analytics",
-        icon: Calendar,
-      },
-      {
-        title: "Knowledge Categories",
-        href: "/admin/knowledge-categories",
-        icon: FolderTree,
-      },
-      {
-        title: "Knowledge Analytics",
-        href: "/admin/knowledge-analytics",
-        icon: BookOpen,
-      },
-    ],
-  },
-  {
-    title: "AI & AUTOMATION",
-    items: [
-      {
-        title: "AI Models",
-        href: "/admin/ai-models",
-        icon: Brain,
-      },
-      {
-        title: "Agents",
-        href: "/admin/agents",
-        icon: Bot,
-      },
-      {
-        title: "AI Usage Analytics",
-        href: "/admin/ai-usage",
-        icon: BarChart,
-      },
-    ],
-  },
-  {
-    title: "DEVELOPER DOCS",
-    items: [
-      {
-        title: "Product Vision",
-        href: "/docs/vision",
-        icon: FileText,
-      },
-      {
-        title: "Product Backlog",
-        href: "/docs/backlog",
-        icon: ListChecks,
-      },
-      {
-        title: "Technical Guide",
-        href: "/docs/technical",
-        icon: Code,
-      },
-      {
-        title: "Roadmap",
-        href: "/docs/roadmap",
-        icon: Map,
-      },
-    ],
-  },
-  {
-    title: "RISK & COMPLIANCE",
-    items: [
-      {
-        title: "SLA Management",
-        href: "/admin/sla",
-        icon: ShieldAlert,
-      },
-      {
-        title: "Compliance Rules",
-        href: "/admin/compliance-rules",
-        icon: Scale,
-      },
-      {
-        title: "HMDA Reporting",
-        href: "/admin/hmda-reporting",
-        icon: FileText,
-      },
-      {
-        title: "NMLS Licensing",
-        href: "/admin/licensing-tracker",
-        icon: ShieldAlert,
-      },
+      { title: "AI Models", href: "/admin/ai-models", icon: Brain },
     ],
   },
   {
     title: "SYSTEM",
     items: [
-      {
-        title: "Module Management",
-        href: "/admin/modules",
-        icon: Layers,
-      },
-      {
-        title: "System Settings",
-        href: "/admin/settings",
-        icon: Settings,
-      },
-      {
-        title: "Integrations",
-        href: "/admin/integrations",
-        icon: Zap,
-      },
-      {
-        title: "Deployment Status",
-        href: "/admin/deployment",
-        icon: Database,
-      },
-      {
-        title: "Environment Check",
-        href: "/admin/environment",
-        icon: CheckCircle2,
-      },
-      {
-        title: "Cron Jobs",
-        href: "/admin/cronjobs",
-        icon: Clock,
-      },
-      {
-        title: "Cron Job Logs",
-        href: "/admin/cronjob-logs",
-        icon: ScrollText,
-      },
+      { title: "Module Management", href: "/admin/modules", icon: Layers },
+      { title: "System Settings", href: "/admin/settings", icon: Settings },
+      { title: "Integrations", href: "/admin/integrations", icon: Zap },
     ],
   },
 ];

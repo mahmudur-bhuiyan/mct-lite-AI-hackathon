@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { queryKeys } from "@/lib/cache";
 
 export type SettlementOrderType = "flood" | "title" | "homeowners_insurance" | "other";

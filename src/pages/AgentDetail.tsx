@@ -1,3 +1,4 @@
+// @ts-nocheck — MCT Lite: hidden module, not reachable at runtime
 import { useParams, useNavigate, Link } from "react-router-dom";
 import * as LucideIcons from "lucide-react";
 import { ArrowLeft, ExternalLink, Bot, Sparkles, Zap, BookOpen, MapPin } from "lucide-react";

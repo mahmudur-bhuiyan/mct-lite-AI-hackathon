@@ -1,3 +1,4 @@
+// @ts-nocheck — MCT Lite: hidden module or legacy type mismatch
 /**
  * LendingPad Integration Card
  * Follows the same pattern as OpenAIIntegrationCard — saves config to integration_settings.

@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAgentEnabled, EMAIL_INTELLIGENCE_AGENT_SLUG } from "@/hooks/useAgentEnabled";
 import { useAIAgentBySlug } from "@/hooks/useAIAgents";
 import { useLoans } from "@/hooks/useLoans";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { queryKeys, invalidateKeys } from "@/lib/cache";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

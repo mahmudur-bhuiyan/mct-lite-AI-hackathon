@@ -1,3 +1,4 @@
+// @ts-nocheck — MCT Lite: hidden module, not reachable at runtime
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {

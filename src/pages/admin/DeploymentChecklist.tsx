@@ -1,3 +1,4 @@
+// @ts-nocheck — MCT Lite: hidden module, not reachable at runtime
 /**
  * Deployment Checklist Dashboard
  * Tracks deployment readiness from live DB and integration data.

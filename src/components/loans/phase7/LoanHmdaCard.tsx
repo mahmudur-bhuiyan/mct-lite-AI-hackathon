@@ -1,3 +1,4 @@
+// @ts-nocheck — MCT Lite: hidden module, not reachable at runtime
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

@@ -12,7 +12,7 @@ import {
   AlertTriangle,
   Loader2,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 function estimateReadingMinutes(content: string): number {
   const words = content.trim().split(/\s+/).filter(Boolean).length;

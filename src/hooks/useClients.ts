@@ -3,7 +3,7 @@ import { queryKeys, invalidateKeys } from "@/lib/cache";
 import { ClientFormData } from "@/lib/validation";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 export interface Client {
   id: string;

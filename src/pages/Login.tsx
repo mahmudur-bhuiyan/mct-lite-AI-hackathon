@@ -118,40 +118,30 @@ export default function Login() {
               )}
               
               {/* Demo Credentials */}
-              <div className="rounded-lg border border-border bg-muted/50 p-3">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Demo Credentials</p>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Admin:</span>
-                    <button
-                      type="button"
-                      onClick={() => { setEmail("admin@mortgagecontroltower.com"); setPassword("Admin@123"); }}
-                      className="font-mono text-foreground hover:text-primary"
-                    >
-                      admin@mortgagecontroltower.com
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Loan Officer:</span>
-                    <button
-                      type="button"
-                      onClick={() => { setEmail("loanofficer@mortgagecontroltower.com"); setPassword("LoanOfficer@123"); }}
-                      className="font-mono text-foreground hover:text-primary"
-                    >
-                      loanofficer@mortgagecontroltower.com
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">User:</span>
-                    <button
-                      type="button"
-                      onClick={() => { setEmail("demo@mortgagecontroltower.com"); setPassword("Demo@123"); }}
-                      className="font-mono text-foreground hover:text-primary"
-                    >
-                      demo@mortgagecontroltower.com
-                    </button>
-                  </div>
-                  <p className="mt-1 text-muted-foreground/70">Click email to auto-fill credentials</p>
+              <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium text-muted-foreground">Demo Accounts</p>
+                  <span className="text-[10px] text-muted-foreground/70">click to login · long-press to fill</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {DEMO_ACCOUNTS.map((acct) => {
+                    const Icon = acct.icon;
+                    return (
+                      <button
+                        key={acct.email}
+                        type="button"
+                        disabled={loading}
+                        onClick={() => loginAsDemo(acct)}
+                        onContextMenu={(e) => { e.preventDefault(); fillDemo(acct); }}
+                        className="group flex flex-col items-center gap-1 rounded-md border border-border bg-card p-2 text-center transition hover:border-primary hover:bg-primary/5 disabled:opacity-50"
+                        title={`${acct.email} → ${acct.route}`}
+                      >
+                        <Icon className="h-4 w-4 text-primary" />
+                        <span className="text-xs font-medium text-foreground">{acct.label}</span>
+                        <span className="font-mono text-[10px] text-muted-foreground truncate w-full">{acct.email}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

@@ -1,4 +1,5 @@
-import { Check, X, Minus } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const comparisonData = [

@@ -1,11 +1,26 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Brain } from "lucide-react";
+import { Loader2, Brain, Shield, Briefcase, User as UserIcon } from "lucide-react";
+
+type DemoRole = "admin" | "loan_officer" | "user";
+
+const DEMO_ACCOUNTS: { role: DemoRole; label: string; email: string; password: string; route: string; icon: any }[] = [
+  { role: "admin",        label: "Admin",        email: "admin@demo.co", password: "DemoAdmin!2026", route: "/admin",     icon: Shield },
+  { role: "loan_officer", label: "Loan Officer", email: "lo@demo.co",    password: "DemoLO!2026",    route: "/dashboard", icon: Briefcase },
+  { role: "user",         label: "User",         email: "user@demo.co",  password: "DemoU!2026",     route: "/knowledge", icon: UserIcon },
+];
+
+function routeForRole(role: string | undefined): string {
+  if (role === "admin" || role === "moderator") return "/admin";
+  if (role === "loan_officer") return "/dashboard";
+  return "/knowledge";
+}
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -15,27 +30,29 @@ export default function Login() {
   const { signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
 
+  const resolveRoleAndNavigate = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id;
+    let target = "/dashboard";
+    if (uid) {
+      const { data: roleRow } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", uid)
+        .maybeSingle();
+      target = routeForRole(roleRow?.role as string | undefined);
+    }
+    navigate(target, { replace: true });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
-    console.log('📝 [LOGIN PAGE] Form submitted');
-    console.log('📝 [LOGIN PAGE] Email:', email);
-    console.log('📝 [LOGIN PAGE] Password length:', password.length);
-
     try {
-      console.log('📝 [LOGIN PAGE] Calling signIn...');
       await signIn(email, password);
-      console.log('✅ [LOGIN PAGE] Sign in successful, navigating to dashboard');
-      navigate("/dashboard");
+      await resolveRoleAndNavigate();
     } catch (error: any) {
-      console.error("❌ [LOGIN PAGE] Login error:", {
-        message: error.message,
-        name: error.name,
-        status: error.status,
-        fullError: error
-      });
       setError(error.message || "Failed to sign in");
     } finally {
       setLoading(false);
@@ -49,6 +66,27 @@ export default function Login() {
     } catch (error: any) {
       console.error("Google sign in error:", error);
       setError(error.message || "Failed to sign in with Google");
+      setLoading(false);
+    }
+  };
+
+  const fillDemo = (acct: typeof DEMO_ACCOUNTS[number]) => {
+    setEmail(acct.email);
+    setPassword(acct.password);
+    setError("");
+  };
+
+  const loginAsDemo = async (acct: typeof DEMO_ACCOUNTS[number]) => {
+    setEmail(acct.email);
+    setPassword(acct.password);
+    setError("");
+    setLoading(true);
+    try {
+      await signIn(acct.email, acct.password);
+      navigate(acct.route, { replace: true });
+    } catch (error: any) {
+      setError(error.message || "Failed to sign in");
+    } finally {
       setLoading(false);
     }
   };

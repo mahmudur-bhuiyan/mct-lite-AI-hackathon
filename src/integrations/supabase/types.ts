@@ -50,6 +50,57 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_agents: {
+        Row: {
+          category: string | null
+          created_at: string
+          data_sources: string[] | null
+          description: string | null
+          id: string
+          is_enabled: boolean
+          memory_enabled: boolean
+          metadata: Json | null
+          name: string
+          provider_config: Json | null
+          required_role: string | null
+          slug: string
+          system_prompt: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          data_sources?: string[] | null
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          memory_enabled?: boolean
+          metadata?: Json | null
+          name: string
+          provider_config?: Json | null
+          required_role?: string | null
+          slug: string
+          system_prompt?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          data_sources?: string[] | null
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          memory_enabled?: boolean
+          metadata?: Json | null
+          name?: string
+          provider_config?: Json | null
+          required_role?: string | null
+          slug?: string
+          system_prompt?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_chat_messages: {
         Row: {
           content: string | null

@@ -1,7 +1,6 @@
-// @ts-nocheck — MCT Lite: hidden module, not reachable at runtime
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import * as LucideIcons from "lucide-react";
-import { ArrowLeft, ExternalLink, Bot, Sparkles, Zap, BookOpen, MapPin } from "lucide-react";
+import { ArrowLeft, ExternalLink, Bot, Sparkles, Zap, BookOpen, MapPin, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -48,6 +47,8 @@ function getAvatar(agent: AIAgent) {
 export default function AgentDetail() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const loanContext = (location.state as { loanContext?: Record<string, unknown> } | null)?.loanContext;
   const { data: dbAgents = [] } = useAIAgents();
 
   const selectedAgent = dbAgents.find((a) => a.slug === slug && a.is_enabled);
@@ -137,36 +138,56 @@ export default function AgentDetail() {
               </p>
             </div>
 
-            {/* CTA — desktop */}
-            {whereToFind && (
+            {/* Primary CTA — Start Chat */}
+            <div className="hidden sm:flex flex-col gap-2 shrink-0">
               <Button
                 size="lg"
-                className="hidden sm:flex font-semibold text-white shadow-lg hover:shadow-xl transition-all shrink-0"
+                className="font-semibold text-white shadow-lg hover:shadow-xl transition-all"
                 style={{
                   background: `linear-gradient(135deg, hsl(${gradientFrom}), hsl(${gradientTo}))`,
                 }}
-                onClick={() => navigate(whereToFind!.path)}
+                onClick={() =>
+                  navigate(`/agents/${selectedAgent.id}/chat`, {
+                    state: loanContext ? { loanContext } : undefined,
+                  })
+                }
               >
-                <ExternalLink className="h-4 w-4 mr-2" />
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Start Chat
+              </Button>
+              {whereToFind && (
+                <Button variant="outline" size="sm" onClick={() => navigate(whereToFind!.path)}>
+                  <ExternalLink className="h-3.5 w-3.5 mr-2" />
+                  Go to {whereToFind.label}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* CTA — mobile */}
+          <div className="sm:hidden w-full mt-4 flex flex-col gap-2">
+            <Button
+              size="lg"
+              className="w-full font-semibold text-white shadow-lg"
+              style={{
+                background: `linear-gradient(135deg, hsl(${gradientFrom}), hsl(${gradientTo}))`,
+              }}
+              onClick={() =>
+                navigate(`/agents/${selectedAgent.id}/chat`, {
+                  state: loanContext ? { loanContext } : undefined,
+                })
+              }
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Start Chat
+            </Button>
+            {whereToFind && (
+              <Button variant="outline" size="sm" className="w-full" onClick={() => navigate(whereToFind!.path)}>
+                <ExternalLink className="h-3.5 w-3.5 mr-2" />
                 Go to {whereToFind.label}
               </Button>
             )}
           </div>
-
-          {/* CTA — mobile */}
-          {whereToFind && (
-            <Button
-              size="lg"
-              className="sm:hidden w-full mt-4 font-semibold text-white shadow-lg"
-              style={{
-                background: `linear-gradient(135deg, hsl(${gradientFrom}), hsl(${gradientTo}))`,
-              }}
-              onClick={() => navigate(whereToFind!.path)}
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Go to {whereToFind.label}
-            </Button>
-          )}
         </div>
       </div>
 
@@ -301,7 +322,7 @@ export default function AgentDetail() {
               <h3 className="text-base font-bold text-foreground mb-3">Other agents in this team</h3>
               <ul className="space-y-2">
                 {siblingAgents.map((sibling) => {
-                  const SiblingIcon = getLucideIcon(sibling.icon);
+                  const SiblingIcon = Bot;
                   return (
                     <li key={sibling.slug}>
                       <Link

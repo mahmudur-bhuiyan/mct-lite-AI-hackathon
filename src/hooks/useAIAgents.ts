@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { queryKeys, invalidateKeys } from "@/lib/cache";
 import { logCrud } from "@/lib/activity-logger";
+import { isAgentAllowedForUser } from "@/lib/agentRoles";
 
 export interface AIAgent {
   id: string;
@@ -132,6 +134,27 @@ export function useAIAgentBySlug(slug: string) {
 export function useEnabledAgentBySlug(slug: string) {
   const { data: agents } = useAIAgents();
   return agents?.find((a) => a.slug === slug && a.is_enabled) ?? null;
+}
+
+/**
+ * Returns only the agents that are both enabled AND allowed for the current
+ * user's role, using AGENT_ALLOWED_ROLES_BY_SLUG from src/lib/agentRoles.ts.
+ *
+ * Used by AgentsBrowse so each role only sees their permitted agents.
+ */
+export function useRoleFilteredAgents() {
+  const { profile } = useAuth();
+  const query = useAIAgents();
+
+  const data = useMemo(
+    () =>
+      (query.data ?? []).filter(
+        (agent) => agent.is_enabled && isAgentAllowedForUser(agent.slug, profile),
+      ),
+    [query.data, profile],
+  );
+
+  return { ...query, data };
 }
 
 export function useAgentRuns(agentId?: string) {

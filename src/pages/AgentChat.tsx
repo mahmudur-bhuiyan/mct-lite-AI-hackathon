@@ -1,4 +1,3 @@
-// @ts-nocheck — MCT Lite: hidden module or legacy type mismatch
 import { useState, useEffect, useCallback } from "react";
 import { useChatScrollToBottom } from "@/hooks/useChatScrollToBottom";
 import ReactMarkdown from "react-markdown";
@@ -142,6 +141,9 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
   const { agentId } = useParams<{ agentId: string }>();
   const location = useLocation();
   const isAdminPath = location.pathname.startsWith("/admin");
+  // Optional loan context passed via navigate(path, { state: { loanContext: {...} } })
+  const loanContext = (location.state as { loanContext?: Record<string, unknown> } | null)
+    ?.loanContext ?? null;
   const { user, profile } = useAuth();
   const isAdmin = profile?.role === "admin";
   const appSidebar = useAppSidebar();
@@ -428,15 +430,17 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
         content: m.content,
       }));
 
-      const { data, error } = await supabase.functions.invoke("run-ai-agent", {
-        body: {
-          agent_slug: agent.slug,
-          agent_id: agent.id,
-          input: userMsg.content,
-          conversation_history: conversationHistory,
-          conversation_id: conversationId,
-        },
-      });
+      const body: Record<string, unknown> = {
+        agent_slug: agent.slug,
+        agent_id: agent.id,
+        input: userMsg.content,
+        conversation_history: conversationHistory,
+        conversation_id: conversationId,
+      };
+      // Inject loan context so agent system prompt receives it under "Context:"
+      if (loanContext) body.context = loanContext;
+
+      const { data, error } = await supabase.functions.invoke("run-ai-agent", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
@@ -667,6 +671,17 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
             <p>
               {providerLabel} integration is not configured. Add and enable an API key in Admin → Integrations to chat.
             </p>
+          </div>
+        )}
+
+        {loanContext && (
+          <div className="mx-4 mt-3 flex items-center gap-2 rounded-lg border border-blue-300 bg-blue-50 dark:bg-blue-900/10 px-3 py-2 text-xs text-blue-800 dark:text-blue-200">
+            <Bot className="h-3.5 w-3.5 shrink-0" />
+            <span>
+              Loan context active
+              {typeof loanContext.loan_number === "string" ? ` — ${loanContext.loan_number}` : ""}
+              {typeof loanContext.borrower_name === "string" ? ` · ${loanContext.borrower_name}` : ""}
+            </span>
           </div>
         )}
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { useLoan } from "@/hooks/useLoans";
 import { useEffectivePermissions } from "@/hooks/useEffectivePermissions";
 import { useAgentEnabled, DOCUMENT_GENERATION_AGENT_SLUG, LOAN_COACHING_AGENT_SLUG, UNDERWRITER_PRECHECK_AGENT_SLUG, RATE_ALERT_INTELLIGENCE_AGENT_SLUG, COMPLIANCE_SCREENING_AGENT_SLUG } from "@/hooks/useAgentEnabled";
@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Edit, Loader2, Activity, FileText, Mail, GraduationCap, MessageSquare, Database, FolderOpen, ClipboardList, Zap, Gauge, FileSignature } from "lucide-react";
+import { ArrowLeft, Edit, Loader2, Activity, FileText, Mail, GraduationCap, MessageSquare, Database, FolderOpen, ClipboardList, Zap, Gauge, FileSignature, Bot } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import { LoanTimeline } from "@/components/loans/LoanTimeline";
 import { ConditionTracker } from "@/components/loans/ConditionTracker";
@@ -63,6 +63,7 @@ import { LoanPipelineContextCard } from "@/components/loans/LoanPipelineContextC
 
 export default function LoanDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { hasPermission } = useEffectivePermissions();
   const { profile } = useAuth();
   const canUpdate = hasPermission("loans:update");
@@ -102,6 +103,18 @@ export default function LoanDetail() {
   const showPrecheck = precheckAgentEnabled && isAgentAllowedForUser("underwriter-precheck-agent", profile);
   const showRateAlert = rateAlertAgentEnabled && isAgentAllowedForUser("rate-alert-intelligence-agent", profile);
   const showCompliance = complianceAgentEnabled && isAgentAllowedForUser("compliance-screening-agent", profile);
+
+  const handleChatWithAgent = (agentSlug: string) => {
+    if (!loan) return;
+    const loanContext = {
+      loan_id: loan.id,
+      loan_number: loan.loan_number,
+      status: loan.status,
+      loan_amount: loan.loan_amount,
+      borrower_name: borrowerName,
+    };
+    navigate(`/agents/${agentSlug}`, { state: { loanContext } });
+  };
 
   if (isLoading || !loan) {
     return (
@@ -159,6 +172,17 @@ export default function LoanDetail() {
                       <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
                     </span>
                   )}
+                </Button>
+              )}
+              {isAgentAllowedForUser("daily-action-agent", profile) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleChatWithAgent("daily-action-agent")}
+                  className="gap-2"
+                >
+                  <Bot className="h-4 w-4" />
+                  AI Chat
                 </Button>
               )}
             </div>

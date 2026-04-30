@@ -282,10 +282,11 @@ const App = () => (
                 <Route path="/pricing" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/pricing/*" element={<Navigate to="/dashboard" replace />} />
 
-                {/* AI Agent Browse — Lite-hidden (admin can re-enable) */}
+                {/* AI Agent Browse + per-agent chat for all authenticated users */}
                 <Route element={<ModuleRoute requiresFeatureFlag="enableAIAgents" />}>
                   <Route path="/agents" element={<AgentsBrowse />} />
                   <Route path="/agents/:slug" element={<AgentDetail />} />
+                  <Route path="/agents/:agentId/chat" element={<AgentChat />} />
                 </Route>
 
                 {/* Action Items (gated by agent enabled in component) */}

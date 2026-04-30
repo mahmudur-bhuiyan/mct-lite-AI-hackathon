@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Sparkles, Bot, MessageSquare, BarChart3, ListTodo, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAIAgents, type AIAgent, type AgentMetadata } from "@/hooks/useAIAgents";
+import { useRoleFilteredAgents, type AIAgent, type AgentMetadata } from "@/hooks/useAIAgents";
 
 const SECTION_PALETTES = [
   { sectionBadgeBg: "bg-fuchsia-600", cardGradientFrom: "296 91% 38%", cardGradientTo: "330 81% 47%" }, // magenta
@@ -79,14 +79,11 @@ function buildSectionMeta(category: string, agents: AIAgent[]) {
 
 export default function AgentsBrowse() {
   const navigate = useNavigate();
-  const { data: dbAgents = [], isLoading } = useAIAgents();
+  const { data: visibleAgents = [], isLoading } = useRoleFilteredAgents();
 
   const enabledAgents = useMemo(
-    () =>
-      dbAgents
-        .filter((agent) => agent.is_enabled)
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [dbAgents]
+    () => [...visibleAgents].sort((a, b) => a.name.localeCompare(b.name)),
+    [visibleAgents]
   );
 
   const groupedAgents = useMemo(() => {

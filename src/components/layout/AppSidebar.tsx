@@ -79,6 +79,13 @@ const navigationItems: SidebarItem[] = [
     module: "loans",
   },
   {
+    title: "Tasks",
+    href: "/tasks",
+    icon: CheckSquare,
+    permission: permissionKey("tasks", "read"),
+    featureFlag: "enableTasks",
+  },
+  {
     title: "Action Items",
     href: "/action-items",
     icon: ListTodo,
@@ -105,6 +112,13 @@ const aiToolsItems: SidebarItem[] = [
     isAI: true,
     permission: permissionKey("ai_chat", "read"),
     featureFlag: "enableAIChat",
+  },
+  {
+    title: "AI Agents",
+    href: "/agents",
+    icon: Bot,
+    isAI: true,
+    featureFlag: "enableAIAgents",
   },
 ];
 

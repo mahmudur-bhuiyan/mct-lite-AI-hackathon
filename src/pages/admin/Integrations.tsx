@@ -131,7 +131,8 @@ export default function Integrations() {
             <OpenAIIntegrationCard />
             <AIProviderIntegrationCard config={anthropicConfig} />
             <AIProviderIntegrationCard config={googleAIConfig} />
-            <AIProviderIntegrationCard config={perplexityConfig} />
+            {/* MCT Lite: Perplexity hidden — re-enable by uncommenting below */}
+            {/* <AIProviderIntegrationCard config={perplexityConfig} /> */}
           </div>
         </TabsContent>
 
@@ -197,16 +198,18 @@ export default function Integrations() {
             <SendGridIntegrationCard />
           </div>
 
+          {/* MCT Lite: DocuSign / E-Sign hidden — re-enable by uncommenting below */}
+          {/*
           <div className="pt-4">
             <h2 className="text-base font-semibold text-foreground">E-Sign</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              DocuSign integration for borrower disclosure signing. When enabled, borrowers must sign disclosures via
-              DocuSign before they can proceed.
+              DocuSign integration for borrower disclosure signing.
             </p>
           </div>
           <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
             <DocuSignIntegrationCard />
           </div>
+          */}
         </TabsContent>
 
         <TabsContent value="storage">

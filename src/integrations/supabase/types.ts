@@ -214,6 +214,57 @@ export type Database = {
         }
         Relationships: []
       }
+      integration_settings: {
+        Row: {
+          api_key: string | null
+          api_key_masked: string | null
+          config: Json
+          created_at: string
+          created_by: string | null
+          display_name: string
+          id: string
+          is_active: boolean
+          last_validated_at: string | null
+          provider_name: string
+          updated_at: string
+          updated_by: string | null
+          validation_error: string | null
+          validation_status: string | null
+        }
+        Insert: {
+          api_key?: string | null
+          api_key_masked?: string | null
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          id?: string
+          is_active?: boolean
+          last_validated_at?: string | null
+          provider_name: string
+          updated_at?: string
+          updated_by?: string | null
+          validation_error?: string | null
+          validation_status?: string | null
+        }
+        Update: {
+          api_key?: string | null
+          api_key_masked?: string | null
+          config?: Json
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          last_validated_at?: string | null
+          provider_name?: string
+          updated_at?: string
+          updated_by?: string | null
+          validation_error?: string | null
+          validation_status?: string | null
+        }
+        Relationships: []
+      }
       knowledge_entries: {
         Row: {
           category: string | null

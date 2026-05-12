@@ -55,11 +55,13 @@ export default function KnowledgeUpload() {
       "text/plain",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/json",
       "text/markdown",
     ];
 
     const validFiles = selectedFiles.filter((file) => {
-      if (!allowedTypes.includes(file.type) && !file.name.endsWith(".md")) {
+      if (!allowedTypes.includes(file.type) && !file.name.endsWith(".md") && !file.name.endsWith(".json") && !file.name.endsWith(".xlsx")) {
         toast.error(`${file.name}: Unsupported file type`);
         return false;
       }
@@ -117,6 +119,16 @@ export default function KnowledgeUpload() {
         return text;
       } catch (error) {
         console.error("Error reading text file:", error);
+        return "";
+      }
+    }
+
+    if (file.type === "application/json" || file.name.endsWith(".json")) {
+      try {
+        const text = await file.text();
+        return text;
+      } catch (error) {
+        console.error("Error reading JSON file:", error);
         return "";
       }
     }
@@ -239,6 +251,7 @@ export default function KnowledgeUpload() {
             file_path: filePath,
             file_name: fileName,
             file_type: fileExtension,
+            mime_type: files[index]?.file?.type || null,
             file_size: files[index]?.file?.size,
             has_extracted_content: !!extractedContent,
             is_pdf: isPdf,
@@ -254,6 +267,18 @@ export default function KnowledgeUpload() {
       }
 
       console.log("✅ Knowledge entry created:", entry);
+
+      try {
+        const { error: parseFnErr } = await supabase.functions.invoke("parse-document", {
+          body: { knowledge_entry_id: entry.id },
+        });
+        if (parseFnErr) {
+          console.warn("parse-document:", parseFnErr.message);
+          toast.warning("Uploaded. Full text extraction may still be processing or failed — check the knowledge entry.");
+        }
+      } catch (parseErr) {
+        console.warn("parse-document invoke:", parseErr);
+      }
 
       // Update to completed
       setFiles((prev) =>
@@ -387,7 +412,7 @@ export default function KnowledgeUpload() {
               <div className="flex-1">
                 <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">File Upload Requirements</h4>
                 <div className="mt-1 text-sm text-blue-700 dark:text-blue-300">
-                  <p><strong>Supported formats:</strong> PDF, TXT, DOC, DOCX, MD</p>
+                  <p><strong>Supported formats:</strong> PDF, DOCX, XLSX, TXT, MD, JSON</p>
                   <p><strong>Maximum file size:</strong> 10MB per file</p>
                   <p className="text-xs mt-1 text-blue-600 dark:text-blue-400">Files are stored securely and only accessible by you</p>
                 </div>
@@ -403,7 +428,7 @@ export default function KnowledgeUpload() {
               multiple
               onChange={handleFileChange}
               disabled={uploading}
-              accept=".pdf,.txt,.doc,.docx,.md"
+              accept=".pdf,.txt,.doc,.docx,.md,.json,.xlsx"
             />
           </div>
 

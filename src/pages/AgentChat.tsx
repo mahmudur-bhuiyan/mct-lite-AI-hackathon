@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { getInitials } from "@/lib/utils";
 import { format } from "date-fns";
 import { useAIAgent } from "@/hooks/useAIAgents";
+import { isAgentAllowedForUser } from "@/lib/agentRoles";
 import { useIntegrationSetting } from "@/hooks/useIntegrationSettings";
 import {
   Dialog,
@@ -493,6 +494,18 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
         <p className="text-muted-foreground">Agent not found.</p>
         <Button variant="outline" asChild>
           <Link to="/admin/agents">Back to Agents</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  if (!isAgentAllowedForUser(agent.slug, profile, agent.required_role ?? null)) {
+    const back = location.pathname.startsWith("/admin") ? "/admin/agents" : "/agents";
+    return (
+      <div className="space-y-4 p-6">
+        <p className="text-muted-foreground">You do not have access to this agent.</p>
+        <Button variant="outline" asChild>
+          <Link to={back}>Back to Agents</Link>
         </Button>
       </div>
     );

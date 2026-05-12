@@ -129,6 +129,8 @@ interface ExtendedFormData extends AgentFormData {
   temperature: number;
   max_tokens: number;
   tools: Record<string, boolean>;
+  /** Comma-separated roles for custom agents; empty = all authenticated users. */
+  required_role_input: string;
 }
 
 const DEFAULT_FORM: ExtendedFormData = {
@@ -146,6 +148,7 @@ const DEFAULT_FORM: ExtendedFormData = {
   temperature: 0.7,
   max_tokens: 4096,
   tools: Object.fromEntries(TOOL_IDS.map((id) => [id, false])),
+  required_role_input: "",
 };
 
 // ─── Category config ──────────────────────────────────────────────────────────
@@ -217,6 +220,7 @@ export default function AIAgents() {
         is_public: formData.is_public,
         tools: formData.tools,
       },
+      required_role: formData.required_role_input.trim() || null,
     };
 
     try {
@@ -262,6 +266,7 @@ export default function AIAgents() {
       tools: meta.tools
         ? { ...Object.fromEntries(TOOL_IDS.map((id) => [id, false])), ...meta.tools }
         : Object.fromEntries(TOOL_IDS.map((id) => [id, false])),
+      required_role_input: agent.required_role?.trim() ?? "",
     });
     setCurrentStep(1);
     setDialogOpen(true);
@@ -561,6 +566,23 @@ export default function AIAgents() {
                             { value: "task_management", label: "Task Management" },
                           ]}
                         />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="required_role_input">Who can use this agent (optional)</Label>
+                        <Input
+                          id="required_role_input"
+                          value={formData.required_role_input}
+                          onChange={(e) => patch({ required_role_input: e.target.value })}
+                          placeholder="e.g. loan_officer, branch_manager — leave empty for everyone"
+                          disabled={isProcessing}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          For custom agents only. System agents keep their built-in access rules. Use normalized role
+                          names (comma-separated): <code className="text-xs">loan_officer</code>,{" "}
+                          <code className="text-xs">branch_manager</code>, <code className="text-xs">admin</code>,{" "}
+                          <code className="text-xs">moderator</code>, <code className="text-xs">user</code>.
+                        </p>
                       </div>
 
                       {/* Make Public */}

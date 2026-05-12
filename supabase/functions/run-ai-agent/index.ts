@@ -26,6 +26,7 @@ import {
   executeBuiltInTool,
   resolveAgentTools,
 } from '../_shared/tool-executor.ts';
+import { isAgentAllowedForUserEdge, loadRoleProfileForEdge } from '../_shared/agent-access.ts';
 
 interface RunAgentRequest {
   agent_slug?: string;
@@ -114,7 +115,7 @@ serve(async (req) => {
     // 1. Load agent config server-side (never trust client-supplied system prompt)
     const agentQuery = service
       .from('ai_agents')
-      .select('id, name, slug, system_prompt, is_enabled, provider_config, metadata, memory_enabled');
+      .select('id, name, slug, system_prompt, is_enabled, provider_config, metadata, memory_enabled, required_role');
 
     const { data: agent, error: agentErr } = agent_id
       ? await agentQuery.eq('id', agent_id).maybeSingle()
@@ -126,6 +127,14 @@ serve(async (req) => {
     }
     if (!agent.is_enabled) {
       return jsonResp({ error: `Agent '${agent_slug}' is disabled` }, 400);
+    }
+
+    if (userId) {
+      const roleProfile = await loadRoleProfileForEdge(service, userId);
+      const requiredRole = (agent as { required_role?: string | null }).required_role ?? null;
+      if (!isAgentAllowedForUserEdge(agent.slug, roleProfile, requiredRole)) {
+        return jsonResp({ error: 'You do not have access to this agent' }, 403);
+      }
     }
 
     // 2. Load user personalization (if table exists)

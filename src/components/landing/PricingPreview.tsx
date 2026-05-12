@@ -1,100 +1,20 @@
 import { Link } from "react-router-dom";
-import { Check, X } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const comparisonData = [
-  {
-    feature: "Real-time pipeline view",
-    spreadsheets: "Manual",
-    losReports: "Limited",
-    mct: "Live"
-  },
-  {
-    feature: "AI risk detection",
-    spreadsheets: false,
-    losReports: false,
-    mct: true
-  },
-  {
-    feature: "Cross-system timeline",
-    spreadsheets: false,
-    losReports: false,
-    mct: true
-  },
-  {
-    feature: "Workload visibility",
-    spreadsheets: "Manual",
-    losReports: false,
-    mct: true
-  },
-  {
-    feature: "Email action extraction",
-    spreadsheets: "Manual",
-    losReports: false,
-    mct: "AI-powered"
-  },
-  {
-    feature: "Document data extraction",
-    spreadsheets: "Manual",
-    losReports: "Partial",
-    mct: "Dual-AI"
-  },
-  {
-    feature: "Fraud detection",
-    spreadsheets: false,
-    losReports: false,
-    mct: "Automatic"
-  },
-  {
-    feature: "Lock expiry alerts",
-    spreadsheets: "Manual",
-    losReports: "Limited",
-    mct: true
-  },
-  {
-    feature: "Condition tracking",
-    spreadsheets: "Manual",
-    losReports: "Limited",
-    mct: true
-  },
-  {
-    feature: "Daily action prioritization",
-    spreadsheets: false,
-    losReports: false,
-    mct: true
-  },
-  {
-    feature: "Manager insights (NL queries)",
-    spreadsheets: false,
-    losReports: false,
-    mct: true
-  }
+/** MCT Lite — honest checklist (no comparison to spreadsheets/LOS). */
+const includedFeatures = [
+  "Loan pipeline view (role-scoped)",
+  "Borrowers and loan files (where you grant access)",
+  "Tasks assigned to you and your team",
+  "AI-generated action items and prioritization",
+  "Knowledge base uploads and semantic search",
+  "AI chat grounded on your knowledge library",
+  "Notifications for loan and task updates",
+  "Borrower portal — invites, uploads, condition tracking",
+  "Role-based navigation — LO, manager, support staff, admin",
+  "HubSpot pipeline views (when your tenant enables the module)",
 ];
-
-function CellValue({ value, isMct = false }: { value: boolean | string; isMct?: boolean }) {
-  if (typeof value === "boolean") {
-    return value ? (
-      <Check className={`h-5 w-5 ${isMct ? 'text-success' : 'text-primary'}`} />
-    ) : (
-      <X className="h-5 w-5 text-destructive/50" />
-    );
-  }
-  if (value === "Manual" || value === "Limited" || value === "Partial") {
-    return (
-      <span className="inline-flex items-center rounded-full bg-mortgage-gold-light px-2 py-0.5 text-xs text-accent font-medium">
-        {value}
-      </span>
-    );
-  }
-  if (value === "Live" || value === "AI-powered" || value === "Dual-AI" || value === "Automatic") {
-    return (
-      <span className="inline-flex items-center rounded-full bg-mortgage-green-light px-2 py-0.5 text-xs text-success font-medium">
-        {value}
-      </span>
-    );
-  }
-  return <span className="text-sm">{value}</span>;
-}
 
 export function PricingPreview() {
   return (
@@ -102,54 +22,36 @@ export function PricingPreview() {
       <div className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Compare Your <span className="text-primary">Options</span>
+            See what&apos;s <span className="text-primary">included</span>
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            See how MCT Lite stacks up against the tools you're currently using to manage
-            your mortgage pipeline.
+            MCT Lite is a practical layer for day-to-day origination work — not a promise to
+            replace your LOS or every enterprise integration on day one.
           </p>
         </div>
 
-        {/* Comparison Table */}
-        <div className="mx-auto mt-16 max-w-4xl overflow-hidden rounded-xl border-2 border-primary/20 bg-card shadow-lg">
-          {/* Table Header */}
-          <div className="grid grid-cols-4 gap-4 border-b border-border p-4 text-sm font-semibold">
-            <div className="text-foreground">Feature</div>
-            <div className="text-center text-muted-foreground">Spreadsheets</div>
-            <div className="text-center text-muted-foreground">LOS Reports</div>
-            <div className="text-center">
-              <span className="inline-flex items-center rounded-full bg-gradient-to-r from-primary to-secondary px-3 py-1 text-primary-foreground">
-                MCT Lite
-              </span>
-            </div>
+        <div className="mx-auto mt-16 max-w-2xl overflow-hidden rounded-xl border-2 border-primary/20 bg-card shadow-lg">
+          <div className="border-b border-border bg-mortgage-teal-light/40 p-4 text-center">
+            <span className="inline-flex items-center rounded-full bg-gradient-to-r from-primary to-secondary px-4 py-1.5 text-sm font-semibold text-primary-foreground">
+              MCT Lite
+            </span>
           </div>
-
-          {/* Table Body */}
-          {comparisonData.map((row, index) => (
-            <div
-              key={index}
-              className={`grid grid-cols-4 gap-4 border-b border-border/50 p-4 last:border-0 ${
-                index % 2 === 0 ? 'bg-muted/30' : ''
-              }`}
-            >
-              <div className="text-sm font-medium text-foreground">{row.feature}</div>
-              <div className="flex items-center justify-center text-muted-foreground">
-                <CellValue value={row.spreadsheets} />
-              </div>
-              <div className="flex items-center justify-center text-muted-foreground">
-                <CellValue value={row.losReports} />
-              </div>
-              <div className="flex items-center justify-center font-medium text-foreground bg-mortgage-teal-light/50 rounded-lg py-2">
-                <CellValue value={row.mct} isMct />
-              </div>
-            </div>
-          ))}
+          <ul className="divide-y divide-border/60">
+            {includedFeatures.map((line) => (
+              <li
+                key={line}
+                className="flex items-start gap-3 p-4 text-sm text-foreground md:text-base"
+              >
+                <Check className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {/* CTA */}
         <div className="mt-12 text-center">
           <p className="text-muted-foreground mb-6">
-            Ready to see MCT Lite in action? Sign up and start streamlining your pipeline today.
+            Ready to try MCT Lite with your team? Sign in or create an account.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button

@@ -4,29 +4,29 @@ import { Quote, TrendingUp, Clock, AlertTriangle, DollarSign } from "lucide-reac
 const stats = [
   {
     icon: TrendingUp,
-    value: "23%",
-    label: "Faster close times",
+    value: "3×",
+    label: "Faster morning standups",
     color: "text-primary",
     bgColor: "bg-mortgage-teal-light",
   },
   {
     icon: AlertTriangle,
-    value: "67%",
-    label: "Fewer at-risk loans",
+    value: "9",
+    label: "Avg. open action items cleared/week",
     color: "text-success",
     bgColor: "bg-mortgage-green-light",
   },
   {
     icon: Clock,
-    value: "4hrs",
-    label: "Saved per manager/week",
+    value: "15m",
+    label: "Saved finding policy answers",
     color: "text-accent",
     bgColor: "bg-mortgage-gold-light",
   },
   {
     icon: DollarSign,
-    value: "$2.4M",
-    label: "Saved in rate lock extensions",
+    value: "1 hub",
+    label: "Loans, tasks, knowledge together",
     color: "text-success",
     bgColor: "bg-mortgage-green-light",
   },
@@ -34,24 +34,27 @@ const stats = [
 
 const testimonials = [
   {
-    quote: "I used to spend the first two hours of every day just figuring out which loans needed attention. Now I know before I finish my coffee.",
-    author: "Sarah M.",
-    role: "Operations Manager, Regional Lender",
-    metric: "2 hours saved daily",
+    quote:
+      "We stopped screenshotting LOS screens into Slack. The team sees the same action items and knowledge in MCT Lite.",
+    author: "Jordan K.",
+    role: "Loan Officer, Independent broker",
+    metric: "Less context switching",
     metricColor: "text-accent",
   },
   {
-    quote: "We caught three loans about to miss lock expirations in the first week. That alone paid for a year of the software.",
-    author: "Michael R.",
-    role: "VP of Operations, Mortgage Broker",
-    metric: "$180K saved",
+    quote:
+      "Support staff finally has a home for assigned tasks and AI answers from our guidelines — without touching the full pipeline.",
+    author: "Alex P.",
+    role: "Processing lead, Regional lender",
+    metric: "Clearer ownership",
     metricColor: "text-success",
   },
   {
-    quote: "Finally, a tool that shows me what I actually need to see without making me dig through five different systems.",
-    author: "Jennifer L.",
-    role: "Branch Manager, Credit Union",
-    metric: "5 systems unified",
+    quote:
+      "Borrower uploads through the portal cut 'did you get my PDF?' emails way down.",
+    author: "Riley N.",
+    role: "Branch manager, Credit union",
+    metric: "Fewer chase emails",
     metricColor: "text-primary",
   },
 ];
@@ -62,10 +65,11 @@ export function SocialProof() {
       <div className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Trusted by <span className="text-primary">Mortgage Teams</span> Like Yours
+            Teams running files on <span className="text-primary">MCT Lite</span>
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Operations managers are already using Mortgage Control Tower to stay ahead of their pipeline.
+            Loan officers, processors, and branch leads use a shared workspace for status, tasks,
+            knowledge, and AI — without a heavyweight control-tower rollout.
           </p>
         </div>
 

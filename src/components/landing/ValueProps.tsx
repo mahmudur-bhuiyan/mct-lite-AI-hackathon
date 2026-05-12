@@ -1,33 +1,33 @@
-import { Eye, Mail, FileSearch } from "lucide-react";
+import { Banknote, ListTodo, BookOpen } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const valueProps = [
   {
-    icon: Eye,
-    title: "Manager-First Visibility",
+    icon: Banknote,
+    title: "Loan pipeline control",
     description:
-      "See what matters. Pipeline health, processor workloads, at-risk loans, and approaching deadlines—all in one view. No digging required.",
-    highlights: ["Real-time pipeline view", "Processor workload dashboard", "Risk-sorted loan list"],
+      "See your loans, status, and conditions in one place. Loan officers stay focused on files that need movement; branch leads keep context without extra spreadsheets.",
+    highlights: ["Status and conditions", "Scoped access by role", "Borrower portal handoffs"],
     color: "primary",
     bgColor: "bg-mortgage-teal-light",
     borderColor: "border-primary/20",
   },
   {
-    icon: Mail,
-    title: "Email Intelligence",
+    icon: ListTodo,
+    title: "AI action items",
     description:
-      "Your inbox, understood. AI reads emails, extracts action items, links to loans, and drafts replies. Approve and send—or edit first.",
-    highlights: ["Auto-extract action items", "Link emails to loans", "AI-drafted replies"],
+      "Start the day with prioritized follow-ups. AI surfaces loans and tasks that deserve attention first — so the team spends less time deciding and more time closing.",
+    highlights: ["Daily prioritization", "Assigned ownership", "Works with your notifications"],
     color: "accent",
     bgColor: "bg-mortgage-gold-light",
     borderColor: "border-accent/20",
   },
   {
-    icon: FileSearch,
-    title: "Document AI",
+    icon: BookOpen,
+    title: "Shared knowledge + AI chat",
     description:
-      "Documents read themselves. Dual-provider AI (Landing AI + Google) extracts income, assets, and flags fraud automatically.",
-    highlights: ["Paystubs & W-2 extraction", "Bank statement analysis", "Fraud detection"],
+      "Upload guidelines, checklists, and product notes once. Everyone searches the same library, and AI chat answers from what your team actually published.",
+    highlights: ["Central doc library", "Semantic search", "Grounded AI answers"],
     color: "success",
     bgColor: "bg-mortgage-green-light",
     borderColor: "border-success/20",
@@ -55,11 +55,11 @@ export function ValueProps() {
       <div className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Built for <span className="text-primary">Operations Managers</span>, Not Loan Officers
+            Built for <span className="text-primary">Loan Teams</span>, Not Spreadsheets
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Mortgage Control Tower doesn't replace your LOS or CRM. It sits on top, giving you the visibility 
-            those systems don't provide.
+            MCT Lite does not replace your LOS. It gives loan officers, processors, and leads a
+            lightweight layer for status, tasks, knowledge, and AI — without enterprise bloat.
           </p>
         </div>
 

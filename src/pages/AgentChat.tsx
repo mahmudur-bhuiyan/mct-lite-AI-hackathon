@@ -16,6 +16,11 @@ import { getInitials } from "@/lib/utils";
 import { format } from "date-fns";
 import { useAIAgent } from "@/hooks/useAIAgents";
 import { isAgentAllowedForUser } from "@/lib/agentRoles";
+import {
+  type LlmProvider,
+  getDefaultModelForProvider,
+  resolveLlmProviderFromConfig,
+} from "@/lib/aiAgentProviders";
 import { useIntegrationSetting } from "@/hooks/useIntegrationSettings";
 import {
   Dialog,
@@ -136,8 +141,6 @@ interface AgentChatProps {
   fullScreen?: boolean;
 }
 
-type LlmProvider = "openai" | "google" | "anthropic" | "perplexity";
-
 export default function AgentChat({ fullScreen = false }: AgentChatProps) {
   const { agentId } = useParams<{ agentId: string }>();
   const location = useLocation();
@@ -150,21 +153,7 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
   const appSidebar = useAppSidebar();
   const adminSidebar = useAdminSidebar();
   const { data: agent, isLoading: agentLoading } = useAIAgent(agentId ?? "");
-  const providerFromConfig =
-    agent?.provider_config &&
-    typeof agent.provider_config === "object" &&
-    "provider" in agent.provider_config &&
-    typeof (agent.provider_config as { provider?: unknown }).provider === "string"
-      ? (agent.provider_config as { provider: string }).provider.toLowerCase()
-      : "";
-  const hasExplicitProvider =
-    providerFromConfig === "openai" ||
-    providerFromConfig === "google" ||
-    providerFromConfig === "anthropic" ||
-    providerFromConfig === "perplexity";
-  const activeProvider: LlmProvider = hasExplicitProvider
-    ? (providerFromConfig as LlmProvider)
-    : "openai";
+  const activeProvider: LlmProvider = resolveLlmProviderFromConfig(agent?.provider_config);
   const { data: activeIntegration } = useIntegrationSetting(isAdmin ? activeProvider : "");
 
   // Collapse the correct sidebar by default: admin sidebar when in admin panel, app sidebar when under /ai
@@ -219,7 +208,6 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
 
   const isProviderReady =
     !isAdmin ||
-    !hasExplicitProvider ||
     (!!activeIntegration?.api_key && activeIntegration.is_active !== false);
   const providerLabel =
     activeProvider === "google"
@@ -514,7 +502,11 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
   const backHref = window.location.pathname.startsWith("/admin") ? "/admin/agents" : "/ai/agents";
 
   const displayModel =
-    (agent.provider_config as { model?: string } | null)?.model || "gpt-4o-mini";
+    (() => {
+      const cfg = agent.provider_config as { model?: string } | null;
+      if (typeof cfg?.model === "string" && cfg.model.trim()) return cfg.model;
+      return getDefaultModelForProvider(activeProvider);
+    })();
 
   return (
     <div

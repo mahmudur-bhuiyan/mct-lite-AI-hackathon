@@ -15,6 +15,15 @@ import {
   AgentProviderConfig,
   AgentMetadata,
 } from "@/hooks/useAIAgents";
+import {
+  type LlmProvider,
+  LLM_PROVIDER_OPTIONS,
+  AI_MODELS_BY_PROVIDER,
+  DEFAULT_MODEL_BY_PROVIDER,
+  DEFAULT_AGENT_LLM_PROVIDER,
+  getDefaultModelForProvider,
+  resolveLlmProviderFromConfig,
+} from "@/lib/aiAgentProviders";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -74,49 +83,6 @@ const AVATAR_OPTIONS = [
   "🏆", "🔌", "🔧", "🧩",
 ];
 
-type LlmProvider = "openai" | "google" | "anthropic" | "perplexity";
-
-const PROVIDER_OPTIONS: Array<{ value: LlmProvider; label: string }> = [
-  { value: "openai", label: "OpenAI" },
-  { value: "google", label: "Google AI" },
-  { value: "anthropic", label: "Anthropic" },
-  { value: "perplexity", label: "Perplexity" },
-];
-
-// ─── Available AI models by provider ─────────────────────────────────────────
-const AI_MODELS_BY_PROVIDER: Record<LlmProvider, Array<{ value: string; label: string }>> = {
-  openai: [
-    { value: "gpt-4.1", label: "GPT 4.1 — Function Calling, Image Analysis" },
-    { value: "gpt-4o", label: "GPT-4o — Omni, Multimodal" },
-    { value: "gpt-4o-mini", label: "GPT-4o Mini — Fast & Efficient" },
-    { value: "gpt-4-turbo", label: "GPT-4 Turbo — Large Context" },
-    { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo — Economical" },
-    { value: "gpt-4.1-mini", label: "GPT-4.1 Mini — Lightweight" },
-  ],
-  google: [
-    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash — Fast and cost-efficient" },
-    { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite — Lowest latency/cost" },
-    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro — Strong reasoning and context" },
-  ],
-  anthropic: [
-    { value: "claude-3-5-haiku-latest", label: "Claude 3.5 Haiku — Fast and lightweight" },
-    { value: "claude-3-5-sonnet-latest", label: "Claude 3.5 Sonnet — Balanced quality" },
-    { value: "claude-3-opus-latest", label: "Claude 3 Opus — Highest capability" },
-  ],
-  perplexity: [
-    { value: "llama-3.1-sonar-small-128k-online", label: "Sonar Small Online — Fast web-grounded" },
-    { value: "llama-3.1-sonar-large-128k-online", label: "Sonar Large Online — Deeper web-grounded" },
-    { value: "llama-3.1-sonar-huge-128k-online", label: "Sonar Huge Online — Highest quality web-grounded" },
-  ],
-};
-
-const DEFAULT_MODEL_BY_PROVIDER: Record<LlmProvider, string> = {
-  openai: "gpt-4.1",
-  google: "gemini-2.0-flash",
-  anthropic: "claude-3-5-haiku-latest",
-  perplexity: "llama-3.1-sonar-small-128k-online",
-};
-
 // ─── Tool definitions for Step 3 ──────────────────────────────────────────────
 const TOOL_IDS = ["web_search", "knowledge_base", "data_analysis", "integrations", "code_execution"] as const;
 
@@ -141,10 +107,10 @@ const DEFAULT_FORM: ExtendedFormData = {
   system_prompt: "You are a helpful AI assistant.",
   is_enabled: true,
   memory_enabled: false,
-  provider: "openai",
+  provider: DEFAULT_AGENT_LLM_PROVIDER,
   avatar: "🤖",
   is_public: false,
-  model: DEFAULT_MODEL_BY_PROVIDER.openai,
+  model: getDefaultModelForProvider(DEFAULT_AGENT_LLM_PROVIDER),
   temperature: 0.7,
   max_tokens: 4096,
   tools: Object.fromEntries(TOOL_IDS.map((id) => [id, false])),
@@ -240,14 +206,7 @@ export default function AIAgents() {
     setEditingAgent(agent);
     const cfg = (agent.provider_config as AgentProviderConfig | null) ?? {};
     const meta = (agent.metadata as AgentMetadata | null) ?? {};
-    const providerFromConfig = cfg.provider;
-    const resolvedProvider: LlmProvider =
-      providerFromConfig === "openai" ||
-      providerFromConfig === "google" ||
-      providerFromConfig === "anthropic" ||
-      providerFromConfig === "perplexity"
-        ? providerFromConfig
-        : "openai";
+    const resolvedProvider = resolveLlmProviderFromConfig(agent.provider_config);
     setFormData({
       ...DEFAULT_FORM,
       name: agent.name,
@@ -354,9 +313,9 @@ export default function AIAgents() {
   const getAgentModel = (agent: AIAgent): string => {
     if (agent.provider_config && typeof agent.provider_config === "object") {
       const cfg = agent.provider_config as Record<string, unknown>;
-      if (typeof cfg.model === "string") return cfg.model;
+      if (typeof cfg.model === "string" && cfg.model.trim()) return cfg.model;
     }
-    return "gpt-4.1";
+    return getDefaultModelForProvider(resolveLlmProviderFromConfig(agent.provider_config));
   };
 
   const getAgentAvatar = (agent: AIAgent): string => {
@@ -638,7 +597,7 @@ export default function AIAgents() {
                               model: DEFAULT_MODEL_BY_PROVIDER[nextProvider],
                             });
                           }}
-                          options={PROVIDER_OPTIONS.map((p) => ({ value: p.value, label: p.label }))}
+                          options={LLM_PROVIDER_OPTIONS.map((p) => ({ value: p.value, label: p.label }))}
                         />
                       </div>
 

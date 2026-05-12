@@ -221,7 +221,7 @@ serve(async (req) => {
 
     let resolvedProvider: LlmProvider = hasExplicitProvider
       ? (providerFromConfig as LlmProvider)
-      : 'openai';
+      : 'google';
 
     try {
       const { data: integrationRows } = await service
@@ -236,7 +236,7 @@ serve(async (req) => {
 
       // Respect explicit provider when it's ready; otherwise fail over to another active provider.
       if (!isReady(resolvedProvider)) {
-        const fallbackOrder: LlmProvider[] = ['openai', 'google', 'anthropic', 'perplexity'];
+        const fallbackOrder: LlmProvider[] = ['google', 'openai', 'anthropic', 'perplexity'];
         const fallback = fallbackOrder.find(isReady);
         if (fallback) {
           resolvedProvider = fallback;

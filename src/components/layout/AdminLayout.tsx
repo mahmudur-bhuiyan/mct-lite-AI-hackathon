@@ -19,7 +19,8 @@ function isAdminAgentChatRoute(pathname: string) {
 
 function AdminLayoutContent({ children }: AdminLayoutProps) {
   const location = useLocation();
-  const { hasPermission, isLoading, isAdmin } = useEffectivePermissions();
+  const { user, profileLoading } = useAuth();
+  const { hasPermission, isLoading: permissionsLoading, isAdmin } = useEffectivePermissions();
   const requiredPermission = getPermissionForPath(location.pathname);
   const allowed = hasPermission(requiredPermission);
   const { collapsed } = useAdminSidebar();

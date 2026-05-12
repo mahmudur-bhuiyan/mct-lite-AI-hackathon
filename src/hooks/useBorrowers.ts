@@ -47,6 +47,24 @@ export interface BorrowersPaginatedResult {
   totalCount: number;
 }
 
+/** Loan form dropdown: first N borrowers visible to RLS (avoids pagination bug). */
+export function useBorrowersForSelect(limit = 500) {
+  return useQuery({
+    queryKey: [...queryKeys.borrowers.all, "select-options", limit] as const,
+    queryFn: async (): Promise<
+      Pick<Borrower, "id" | "first_name" | "last_name" | "email">[]
+    > => {
+      const { data, error } = await supabase
+        .from("borrowers")
+        .select("id, first_name, last_name, email")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data ?? []) as Pick<Borrower, "id" | "first_name" | "last_name" | "email">[];
+    },
+  });
+}
+
 export function useBorrowers(filters?: { search?: string; page?: number }) {
   const page = filters?.page ?? 1;
 

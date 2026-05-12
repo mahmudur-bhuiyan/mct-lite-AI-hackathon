@@ -270,7 +270,11 @@ export function useLoanProducts() {
         .select("id, product_name, product_type, term_months, rate_type, is_active")
         .eq("is_active", true)
         .order("product_name");
-      if (error) throw error;
+      // Lite DBs may omit tables or RLS may differ — keep loan form usable with empty product list
+      if (error) {
+        console.warn("[useLoanProducts]", error.message);
+        return [];
+      }
       return (data ?? []) as LoanProduct[];
     },
   });
@@ -287,7 +291,10 @@ export function useLoanPrograms(productId?: string | null) {
         .order("program_name");
       if (productId) query = query.eq("product_id", productId);
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.warn("[useLoanPrograms]", error.message);
+        return [];
+      }
       return (data ?? []) as LoanProgram[];
     },
     enabled: true,

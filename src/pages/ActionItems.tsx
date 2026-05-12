@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -78,6 +79,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
+import { queryKeys } from "@/lib/cache";
 
 const priorityConfig: Record<string, { color: string; label: string }> = {
   high: { color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300", label: "High" },
@@ -479,6 +481,7 @@ function ActionItemList({
 
 export default function ActionItems() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { isEnabled, isLoading: agentLoading } = useAgentEnabled(ACTION_ITEMS_AGENT_SLUG);
@@ -546,13 +549,23 @@ export default function ActionItems() {
     if (!user) return;
     setGenerating(true);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
       const { data, error } = await supabase.functions.invoke("generate-daily-actions", {
         body: { user_id: user.id },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      if (error) throw error;
-      toast.success(data?.message || "Action items generated");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to generate action items");
+      if (error) {
+        const msg =
+          error.message?.includes("Failed to fetch") || error.message?.includes("404")
+            ? "Edge function generate-daily-actions is not deployed. Deploy it from the repo (supabase/functions/generate-daily-actions) in Lovable."
+            : error.message;
+        throw new Error(msg);
+      }
+      toast.success(typeof data?.message === "string" ? data.message : "Action items generated");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.actionItems.all });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate action items");
     } finally {
       setGenerating(false);
     }

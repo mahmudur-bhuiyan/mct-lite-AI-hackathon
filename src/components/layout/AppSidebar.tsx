@@ -15,12 +15,10 @@ import {
 } from "@/components/ui/tooltip";
 import {
   LayoutDashboard,
-  CalendarDays,
   CheckSquare,
   BookOpen,
   Brain,
   ChevronRight,
-  MessageSquare,
   Sparkles,
   Bot,
   Banknote,
@@ -28,8 +26,8 @@ import {
   ListTodo,
   PanelLeftClose,
   PanelRight,
-  Mail,
   Inbox,
+  LineChart,
 } from "lucide-react";
 import { useModuleSettings, isModuleEnabled } from "@/hooks/useModuleSettings";
 import {
@@ -39,6 +37,7 @@ import {
 } from "@/hooks/useAgentEnabled";
 import { useManagementScope } from "@/hooks/useManagementScope";
 import { canAccessOperationsCalendar } from "@/lib/calendarAccess";
+import { getNormalizedUserRoles } from "@/lib/agentRoles";
 import { Button } from "@/components/ui/button";
 
 interface SidebarItem {
@@ -70,6 +69,13 @@ const navigationItems: SidebarItem[] = [
     icon: Banknote,
     permission: permissionKey("loans", "read"),
     module: "loans",
+  },
+  {
+    title: "HubSpot pipeline",
+    href: "/pipeline/hubspot",
+    icon: LineChart,
+    permission: permissionKey("loans", "read"),
+    module: "pipeline_views",
   },
   {
     title: "Borrowers",
@@ -138,6 +144,23 @@ export function AppSidebar() {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   const isAdmin = profile?.role === "admin" || profile?.role === "moderator";
+  /** Loan officer / branch manager (not platform admin): show a short nav set only. */
+  const normalizedRoles = getNormalizedUserRoles(profile);
+  const isLoanOfficerLiteNav =
+    !isAdmin &&
+    (normalizedRoles.has("loan_officer") || normalizedRoles.has("branch_manager"));
+  const loanOfficerNavAllow = new Set<string>([
+    "/dashboard",
+    "/loans",
+    "/pipeline/hubspot",
+    "/borrowers",
+    "/tasks",
+    "/action-items",
+    "/knowledge",
+    "/notifications",
+    "/ai",
+    "/agents",
+  ]);
 
   const agentEnabledMap: Record<string, boolean> = {
     [DOCUMENT_GENERATION_AGENT_SLUG]: documentGenerationAgentEnabled,
@@ -147,6 +170,7 @@ export function AppSidebar() {
   const filterItems = (items: SidebarItem[]) => {
     return items.filter((item) => {
       if (item.adminOnly && !isAdmin) return false;
+      if (isLoanOfficerLiteNav && !loanOfficerNavAllow.has(item.href)) return false;
       if (item.href === "/calendar" && !canAccessOperationsCalendar(profile)) return false;
       if (item.href === "/pipeline" && !showManagerDashboardInNav) return false;
       if (item.module && !isAdmin && !isModuleEnabled(moduleList, item.module)) return false;

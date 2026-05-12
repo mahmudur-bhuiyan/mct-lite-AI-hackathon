@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboardStats, useRecentActivity, getTimeAgo } from "@/hooks/useDashboard";
+import { useActionItemCounts } from "@/hooks/useActionItems";
+import { useUnreadCount } from "@/hooks/useNotifications";
+import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,6 +24,8 @@ import {
   BriefcaseBusiness,
   ContactRound,
   Building2,
+  Bell,
+  CheckSquare,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -72,33 +78,109 @@ export default function Dashboard() {
 }
 
 function UserDashboard() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
+  const { data: counts } = useActionItemCounts();
+  const { data: unreadNotifications = 0 } = useUnreadCount();
+  const { data: openTaskCount = 0 } = useQuery({
+    queryKey: ["tasks", "open-assigned-count", user?.id],
+    queryFn: async (): Promise<number> => {
+      const { count, error } = await supabase
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .eq("assigned_to", user!.id)
+        .neq("status", "completed")
+        .neq("status", "cancelled");
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!user?.id,
+  });
+
   const greeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good morning";
     if (hour < 18) return "Good afternoon";
     return "Good evening";
   };
+
+  const actionOpen = counts?.daily ?? 0;
+  const actionOverdue = counts?.overdue ?? 0;
+
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {greeting()}, {profile?.full_name?.split(" ")[0] || "there"}
         </h1>
-        <p className="mt-1 text-muted-foreground">Welcome to MCT Lite.</p>
+        <p className="mt-1 text-muted-foreground max-w-2xl">
+          Your workspace for loan support tasks, team action items, and AI help with guidelines and documents
+          your loan officers add to the knowledge base.
+        </p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Link to="/ai" className="group">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Link to="/tasks" className="group">
           <Card className="h-full transition-shadow hover:shadow-md">
             <CardContent className="flex items-start gap-4 p-5">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <FileText className="h-6 w-6 text-primary" />
+                <CheckSquare className="h-6 w-6 text-primary" />
               </div>
-              <div className="flex-1">
-                <p className="font-semibold text-foreground">Ask AI Chat</p>
-                <p className="text-sm text-muted-foreground">Get answers from your assistant</p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold text-foreground">My tasks</p>
+                  {openTaskCount > 0 ? (
+                    <Badge variant="secondary" className="text-xs">
+                      {openTaskCount} open
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="text-sm text-muted-foreground">Work assigned to you by the team</p>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to="/action-items" className="group">
+          <Card className="h-full transition-shadow hover:shadow-md">
+            <CardContent className="flex items-start gap-4 p-5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                <ListTodo className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold text-foreground">Action items</p>
+                  {actionOpen > 0 ? (
+                    <Badge variant="secondary" className="text-xs">
+                      {actionOpen} open
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Pipeline follow-ups and AI-suggested next steps
+                  {actionOverdue > 0 ? ` · ${actionOverdue} overdue` : ""}
+                </p>
+              </div>
+              <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to="/notifications" className="group">
+          <Card className="h-full transition-shadow hover:shadow-md">
+            <CardContent className="flex items-start gap-4 p-5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                <Bell className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="font-semibold text-foreground">Notifications</p>
+                  {unreadNotifications > 0 ? (
+                    <Badge variant="default" className="text-xs">
+                      {unreadNotifications} new
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="text-sm text-muted-foreground">Loan updates and messages from your team</p>
+              </div>
+              <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
             </CardContent>
           </Card>
         </Link>
@@ -109,10 +191,26 @@ function UserDashboard() {
                 <Search className="h-6 w-6 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-foreground">Knowledge Base</p>
-                <p className="text-sm text-muted-foreground">Browse articles & guides</p>
+                <p className="font-semibold text-foreground">Knowledge base</p>
+                <p className="text-sm text-muted-foreground">SOPs, products, and docs shared by loan officers</p>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to="/ai" className="group">
+          <Card className="h-full transition-shadow hover:shadow-md sm:col-span-2 lg:col-span-1">
+            <CardContent className="flex items-start gap-4 p-5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                <FileText className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-foreground">AI chat</p>
+                <p className="text-sm text-muted-foreground">
+                  Ask about process, conditions, and documents indexed from your team&apos;s knowledge
+                </p>
+              </div>
+              <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
             </CardContent>
           </Card>
         </Link>

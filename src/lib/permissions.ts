@@ -82,7 +82,7 @@ export function groupPermissionsByResource(): Record<string, PermissionDef[]> {
  *
  * - admin   : every permission (handled separately in useEffectivePermissions).
  * - loan_officer : pipeline operator — own loans, borrowers, knowledge, AI chat, action items.
- * - user    : read-only basic — knowledge + AI chat + notifications.
+ * - user    : support/processor — assigned tasks, action items, knowledge, AI chat (no pipeline).
  *
  * These act as the fallback when a user has no custom_role_id and no per-user
  * permission settings (typical for fresh signups).
@@ -106,6 +106,8 @@ export const LITE_ROLE_PERMISSIONS: Record<LiteRole, string[]> = {
     permissionKey("tasks", "update"),
   ],
   user: [
+    permissionKey("tasks", "read"),
+    permissionKey("tasks", "update"),
     permissionKey("knowledge", "read"),
     permissionKey("ai_chat", "read"),
   ],

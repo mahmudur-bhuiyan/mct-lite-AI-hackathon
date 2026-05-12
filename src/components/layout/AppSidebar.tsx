@@ -161,6 +161,17 @@ export function AppSidebar() {
     "/ai",
     "/agents",
   ]);
+  /** App role `user` (support/processor): minimal nav — no pipeline, borrowers, or agent catalog. */
+  const isUserRoleLiteNav =
+    !isAdmin && !isLoanOfficerLiteNav && profile?.role === "user";
+  const userRoleNavAllow = new Set<string>([
+    "/dashboard",
+    "/tasks",
+    "/action-items",
+    "/knowledge",
+    "/notifications",
+    "/ai",
+  ]);
 
   const agentEnabledMap: Record<string, boolean> = {
     [DOCUMENT_GENERATION_AGENT_SLUG]: documentGenerationAgentEnabled,
@@ -171,6 +182,7 @@ export function AppSidebar() {
     return items.filter((item) => {
       if (item.adminOnly && !isAdmin) return false;
       if (isLoanOfficerLiteNav && !loanOfficerNavAllow.has(item.href)) return false;
+      if (isUserRoleLiteNav && !userRoleNavAllow.has(item.href)) return false;
       if (item.href === "/calendar" && !canAccessOperationsCalendar(profile)) return false;
       if (item.href === "/pipeline" && !showManagerDashboardInNav) return false;
       if (item.module && !isAdmin && !isModuleEnabled(moduleList, item.module)) return false;

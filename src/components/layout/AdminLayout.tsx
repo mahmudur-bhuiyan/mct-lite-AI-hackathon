@@ -3,6 +3,7 @@ import { AdminSidebar } from "./AdminSidebar";
 import { TopNav } from "./TopNav";
 import { ReactNode } from "react";
 import { useEffectivePermissions } from "@/hooks/useEffectivePermissions";
+import { useAuth } from "@/contexts/AuthContext";
 import { getPermissionForPath } from "@/lib/admin-routes";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
@@ -19,7 +20,8 @@ function isAdminAgentChatRoute(pathname: string) {
 
 function AdminLayoutContent({ children }: AdminLayoutProps) {
   const location = useLocation();
-  const { hasPermission, isLoading, isAdmin } = useEffectivePermissions();
+  const { user, profileLoading } = useAuth();
+  const { hasPermission, isLoading: permissionsLoading, isAdmin } = useEffectivePermissions();
   const requiredPermission = getPermissionForPath(location.pathname);
   const allowed = hasPermission(requiredPermission);
   const { collapsed } = useAdminSidebar();
@@ -37,7 +39,7 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
     ? "pr-0 lg:pr-0 h-[calc(100vh-4rem)] overflow-hidden"
     : "";
 
-  if (isLoading && !isAdmin) {
+  if (((user && profileLoading) || permissionsLoading) && !isAdmin) {
     return (
       <div className={cn(rootHeightClass, "bg-background")}>
         <AdminSidebar />

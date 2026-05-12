@@ -26,7 +26,7 @@ export function ModuleRoute({
   requiresFeatureFlag,
   children,
 }: ModuleRouteProps) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, profileLoading } = useAuth();
   const { isFeatureEnabled, isLoading: flagsLoading } = useFeatureFlags();
   const { hasPermission, isLoading: permissionsLoading, isAdmin } = useEffectivePermissions();
   const { data: moduleList, isLoading: modulesLoading } = useModuleSettings();
@@ -42,7 +42,7 @@ export function ModuleRoute({
     }
   }, [flagsLoading, requiresFeatureFlag, isFeatureEnabled]);
 
-  if (loading || flagsLoading || permissionsLoading || (requiresModule && modulesLoading)) {
+  if (loading || (user && profileLoading) || flagsLoading || permissionsLoading || (requiresModule && modulesLoading)) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

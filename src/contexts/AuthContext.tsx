@@ -21,6 +21,7 @@ interface AuthContextType {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
+  profileLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
   const { toast } = useToast();
 
   // Fetch user role from user_roles table
@@ -121,6 +123,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
+    } finally {
+      setProfileLoading(false);
     }
   };
 
@@ -136,11 +140,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Defer Supabase calls with setTimeout to prevent deadlock
       if (session?.user) {
+        setProfileLoading(true);
         setTimeout(() => {
           fetchProfile(session.user.id);
         }, 0);
       } else {
         setProfile(null);
+        setProfileLoading(false);
       }
       setLoading(false);
     });
@@ -150,7 +156,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        setProfileLoading(true);
         fetchProfile(session.user.id);
+      } else {
+        setProfileLoading(false);
       }
       setLoading(false);
     });
@@ -462,6 +471,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     session,
     loading,
+    profileLoading,
     signIn,
     signUp,
     signInWithGoogle,

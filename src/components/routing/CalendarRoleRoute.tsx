@@ -7,9 +7,9 @@ import { Loader2 } from "lucide-react";
  * Restricts child routes to admin, loan_officer, and branch_manager (app or custom role name).
  */
 export function CalendarRoleRoute() {
-  const { profile, loading } = useAuth();
+  const { user, profile, loading, profileLoading } = useAuth();
 
-  if (loading) {
+  if (loading || (user && profileLoading)) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

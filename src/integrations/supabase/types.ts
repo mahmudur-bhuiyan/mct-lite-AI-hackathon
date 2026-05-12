@@ -289,6 +289,80 @@ export type Database = {
         }
         Relationships: []
       }
+      document_extracts: {
+        Row: {
+          byte_size: number | null
+          created_at: string
+          extracted_text: string | null
+          file_name: string
+          id: string
+          knowledge_entry_id: string | null
+          metadata: Json
+          mime_type: string | null
+          page_count: number | null
+          parse_error: string | null
+          parse_status: string
+          parsed_at: string | null
+          sections: Json
+          storage_bucket: string
+          storage_path: string
+          tables_json: Json
+          updated_at: string
+          uploaded_by: string | null
+          word_count: number | null
+        }
+        Insert: {
+          byte_size?: number | null
+          created_at?: string
+          extracted_text?: string | null
+          file_name: string
+          id?: string
+          knowledge_entry_id?: string | null
+          metadata?: Json
+          mime_type?: string | null
+          page_count?: number | null
+          parse_error?: string | null
+          parse_status?: string
+          parsed_at?: string | null
+          sections?: Json
+          storage_bucket?: string
+          storage_path: string
+          tables_json?: Json
+          updated_at?: string
+          uploaded_by?: string | null
+          word_count?: number | null
+        }
+        Update: {
+          byte_size?: number | null
+          created_at?: string
+          extracted_text?: string | null
+          file_name?: string
+          id?: string
+          knowledge_entry_id?: string | null
+          metadata?: Json
+          mime_type?: string | null
+          page_count?: number | null
+          parse_error?: string | null
+          parse_status?: string
+          parsed_at?: string | null
+          sections?: Json
+          storage_bucket?: string
+          storage_path?: string
+          tables_json?: Json
+          updated_at?: string
+          uploaded_by?: string | null
+          word_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_extracts_knowledge_entry_id_fkey"
+            columns: ["knowledge_entry_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_settings: {
         Row: {
           api_key: string | null
@@ -342,31 +416,37 @@ export type Database = {
       }
       knowledge_entries: {
         Row: {
+          author_id: string | null
           category: string | null
           content: string | null
           created_at: string
           created_by: string | null
           id: string
+          metadata: Json | null
           tags: string[] | null
           title: string
           updated_at: string
         }
         Insert: {
+          author_id?: string | null
           category?: string | null
           content?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
+          metadata?: Json | null
           tags?: string[] | null
           title: string
           updated_at?: string
         }
         Update: {
+          author_id?: string | null
           category?: string | null
           content?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
+          metadata?: Json | null
           tags?: string[] | null
           title?: string
           updated_at?: string

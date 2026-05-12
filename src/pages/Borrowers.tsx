@@ -49,7 +49,7 @@ export default function Borrowers() {
   const canCreate = hasPermission("borrowers:create");
   const canUpdate = hasPermission("borrowers:update");
 
-  const { data, isLoading } = useBorrowers({ search: search || undefined, page });
+  const { data, isLoading, isError, error } = useBorrowers({ search: search || undefined, page });
   const borrowers = data?.rows ?? [];
   const totalCount = data?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / BORROWERS_PAGE_SIZE));
@@ -108,6 +108,14 @@ export default function Borrowers() {
           </div>
         </CardContent>
       </Card>
+
+      {isError && (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="pt-6 text-sm text-destructive">
+            Could not load borrowers. {error instanceof Error ? error.message : "Check your permissions or try again."}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="p-0">

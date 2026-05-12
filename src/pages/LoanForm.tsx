@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLoan, useCreateLoan, useUpdateLoan, useLoanProducts, useLoanPrograms } from "@/hooks/useLoans";
-import { useBorrowers } from "@/hooks/useBorrowers";
+import { useBorrowersForSelect } from "@/hooks/useBorrowers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useZipcodeAutofill } from "@/hooks/useZipcodeAutofill";
 import { useUSCountiesByState, useUSCitiesByStateCounty, lookupCountyByCity, US_STATES } from "@/hooks/useUSLocationOptions";
@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/card";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import { PIPELINE_STAGE_SELECT_OPTIONS } from "@/lib/loan-pipeline-stages";
 import { normalizeRoleString } from "@/lib/agentRoles";
@@ -112,7 +113,11 @@ export default function LoanForm() {
   }, [cityValue]);
 
   const { data: loan, isLoading: loadingLoan } = useLoan(id);
-  const { data: borrowers, isLoading: loadingBorrowers } = useBorrowers();
+  const {
+    data: borrowerOptions = [],
+    isLoading: loadingBorrowers,
+    isError: borrowersQueryError,
+  } = useBorrowersForSelect();
   const { data: products } = useLoanProducts();
   const { data: programs } = useLoanPrograms(productId ?? undefined);
   const createLoan = useCreateLoan();
@@ -158,13 +163,25 @@ export default function LoanForm() {
       if (!user?.id) return;
       setLoadingBranches(true);
       try {
-        const [{ data: profileRow, error: profileErr }, { data: branchesRows, error: branchesErr }] =
-          await Promise.all([
-            supabase.from("profiles").select("branch_id").eq("id", user.id).maybeSingle(),
-            supabase.from("branches").select("id, name").eq("is_active", true).order("name"),
-          ]);
+        const { data: profileRow, error: profileErr } = await supabase
+          .from("profiles")
+          .select("branch_id")
+          .eq("id", user.id)
+          .maybeSingle();
         if (profileErr) throw profileErr;
+
+        let { data: branchesRows, error: branchesErr } = await supabase
+          .from("branches")
+          .select("id, name")
+          .eq("is_active", true)
+          .order("name");
+        if (branchesErr || !branchesRows?.length) {
+          const fallback = await supabase.from("branches").select("id, name").order("name").limit(50);
+          branchesRows = fallback.data;
+          branchesErr = fallback.error;
+        }
         if (branchesErr) throw branchesErr;
+
         const branchId = profileRow?.branch_id ?? null;
         setMyBranchId(branchId);
         setBranches((branchesRows ?? []) as Array<{ id: string; name: string }>);
@@ -248,15 +265,25 @@ export default function LoanForm() {
       navigate(redirectToLoanDetail);
     } catch (e) {
       console.error(e);
+      toast.error(e instanceof Error ? e.message : "Could not save loan");
     }
   };
 
   const isSubmitting = createLoan.isPending || updateLoan.isPending;
 
-  if ((loadingLoan || loadingBorrowers) && isEdit) {
+  if (isEdit && (loadingLoan || loadingBorrowers)) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isEdit && (loadingBorrowers || loadingBranches)) {
+    return (
+      <div className="flex h-64 flex-col items-center justify-center gap-2">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="text-sm text-muted-foreground">Loading loan form…</p>
       </div>
     );
   }
@@ -276,6 +303,17 @@ export default function LoanForm() {
           </p>
         </div>
       </div>
+
+      {borrowersQueryError && (
+        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          Could not load borrowers. Add one with &quot;Add new borrower&quot; or check your permissions.
+        </p>
+      )}
+      {isBranchScopedRole && !myBranchId && !loadingBranches && (
+        <p className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
+          Your profile has no branch assigned. An admin must set your branch before you can save a loan.
+        </p>
+      )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <Card>
@@ -299,7 +337,7 @@ export default function LoanForm() {
                 placeholder="Select borrower"
                 options={[
                   { value: "__none__", label: "Select borrower" },
-                  ...(borrowers ?? []).map((b) => ({
+                  ...borrowerOptions.map((b) => ({
                     value: b.id,
                     label: `${b.first_name} ${b.last_name}${b.email ? ` (${b.email})` : ""}`,
                   })),

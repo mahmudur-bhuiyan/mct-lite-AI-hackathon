@@ -140,11 +140,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Defer Supabase calls with setTimeout to prevent deadlock
       if (session?.user) {
+        setProfileLoading(true);
         setTimeout(() => {
           fetchProfile(session.user.id);
         }, 0);
       } else {
         setProfile(null);
+        setProfileLoading(false);
       }
       setLoading(false);
     });
@@ -154,7 +156,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
+        setProfileLoading(true);
         fetchProfile(session.user.id);
+      } else {
+        setProfileLoading(false);
       }
       setLoading(false);
     });

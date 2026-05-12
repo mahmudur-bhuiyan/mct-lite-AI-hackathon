@@ -52,6 +52,22 @@ Use **`npx supabase functions deploy <name>`** per project convention.
 
 ---
 
+## User role (`app_role` = `user`) — Lovable checklist
+
+**Context:** Support/processor accounts see a **minimal sidebar**: Dashboard, Tasks, Action Items, Knowledge, Notifications, **AI Chat** only (no Loans, Borrowers, HubSpot pipeline, **AI Agents** catalog).
+
+**App:** No extra edge functions beyond what you already deploy for LOs; **`user`** needs **`tasks:read`/`tasks:update`** (now in default `LITE_ROLE_PERMISSIONS.user`) so **Tasks** appears.
+
+**Database:** Apply **`20260513190000_support_staff_custom_role.sql`** if you want a named **Support Staff** row in **`roles`** for Admin assignment; optional if everyone stays on system **`user`**.
+
+**Smoke test as `user@demo.co` (or equivalent):**
+
+1. Sidebar matches the short list above; **AI Agents** is hidden.
+2. **Dashboard** shows cards for tasks, action items, notifications, knowledge, AI chat with counts when data exists.
+3. Deep links to **`/loans`** still depend on RLS (typically denied without **`loans:read`**).
+
+---
+
 ## What changed in app code (reference)
 
 - **Add Loan blank screen:** was caused by treating **`useBorrowers()`** paginated result as an array; loan form now uses **`useBorrowersForSelect()`** and loading states for create mode.

@@ -75,6 +75,8 @@ const sidebarGroups: SidebarGroup[] = [
     title: "AI",
     items: [
       { title: "AI Models", href: "/admin/ai-models", icon: Brain },
+      { title: "AI Agents", href: "/admin/agents", icon: Bot },
+      { title: "AI Usage", href: "/admin/ai-usage", icon: BarChart },
     ],
   },
   {
@@ -83,6 +85,8 @@ const sidebarGroups: SidebarGroup[] = [
       { title: "Module Management", href: "/admin/modules", icon: Layers },
       { title: "System Settings", href: "/admin/settings", icon: Settings },
       { title: "Integrations", href: "/admin/integrations", icon: Zap },
+      { title: "Activity Logs", href: "/admin/logs", icon: Activity },
+      { title: "Knowledge Categories", href: "/admin/knowledge-categories", icon: BookOpen },
     ],
   },
 ];

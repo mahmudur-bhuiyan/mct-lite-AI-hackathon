@@ -59,24 +59,11 @@ import SystemSettings from "./pages/admin/SystemSettings";
 import Integrations from "./pages/admin/Integrations";
 import ProviderDetail from "./pages/admin/ProviderDetail";
 import OAuthCallback from "./pages/admin/OAuthCallback";
-import MicrosoftTeamsIntegration from "./pages/admin/integrations/MicrosoftTeamsIntegration";
-import TeamsMeetings from "./pages/admin/integrations/TeamsMeetings";
-import IntegrationAnalytics from "./pages/admin/IntegrationAnalytics";
 import AIModelManagement from "./pages/admin/AIModelManagement";
 import AIUsageAnalytics from "./pages/admin/AIUsageAnalytics";
-import EnvironmentValidator from "./pages/admin/EnvironmentValidator";
-import OnboardingWizard from "./pages/admin/OnboardingWizard";
 import DeploymentChecklist from "./pages/admin/DeploymentChecklist";
-import SSOSettings from "./pages/admin/SSOSettings";
-import MeetingAnalytics from "./pages/admin/MeetingAnalytics";
 import FeedbackManagement from "./pages/admin/FeedbackManagement";
 import ModuleManagement from "./pages/admin/ModuleManagement";
-import SLAManagement from "./pages/admin/SLAManagement";
-import CronJobs from "./pages/admin/CronJobs";
-import CronJobLogs from "./pages/admin/CronJobLogs";
-import ComplianceRules from "./pages/admin/ComplianceRules";
-import HmdaReporting from "./pages/admin/HmdaReporting";
-import LicensingTracker from "./pages/admin/LicensingTracker";
 import KnowledgeCategories from "./pages/admin/KnowledgeCategories";
 import KnowledgeAnalytics from "./pages/admin/KnowledgeAnalytics";
 import Profile from "./pages/Profile";
@@ -336,32 +323,26 @@ const App = () => (
                   <Route path="/admin/settings" element={<SystemSettings />} />
                   <Route path="/admin/integrations" element={<Integrations />} />
                   <Route path="/admin/integrations/oauth/callback" element={<OAuthCallback />} />
-                  <Route path="/admin/integrations/analytics" element={<IntegrationAnalytics />} />
-                  <Route path="/admin/integrations/microsoft-teams" element={<MicrosoftTeamsIntegration />} />
-                  <Route path="/admin/integrations/microsoft-teams/meetings" element={<TeamsMeetings />} />
                   <Route path="/admin/integrations/:slug" element={<ProviderDetail />} />
                   <Route path="/admin/ai-models" element={<AIModelManagement />} />
                   <Route path="/admin/ai-usage" element={<AIUsageAnalytics />} />
                   <Route path="/admin/agents" element={<AIAgents />} />
                   <Route path="/admin/agents/:agentId/chat" element={<AgentChat />} />
                   <Route path="/admin/feedback" element={<FeedbackManagement />} />
-                  <Route path="/admin/deployment" element={<DeploymentStatus />} />
-                  <Route path="/admin/environment" element={<EnvironmentValidator />} />
-                  <Route path="/admin/onboarding" element={<OnboardingWizard />} />
                   <Route path="/admin/checklist" element={<DeploymentChecklist />} />
-                  <Route path="/admin/sso-settings" element={<SSOSettings />} />
-                  <Route path="/admin/meeting-analytics" element={<MeetingAnalytics />} />
                   <Route path="/admin/knowledge-categories" element={<KnowledgeCategories />} />
                   <Route path="/admin/knowledge-analytics" element={<KnowledgeAnalytics />} />
                   <Route path="/admin/modules" element={<ModuleManagement />} />
-                  <Route path="/admin/sla" element={<SLAManagement />} />
-                  <Route path="/admin/cronjobs" element={<CronJobs />} />
-                  <Route path="/admin/cronjob-logs" element={<CronJobLogs />} />
-                  <Route path="/admin/compliance-rules" element={<ComplianceRules />} />
-                  <Route path="/admin/hmda-reporting" element={<HmdaReporting />} />
-                  <Route path="/admin/licensing-tracker" element={<LicensingTracker />} />
-                  {/* Guidelines module disabled for all roles */}
+                  {/* Redirect removed Lite pages to admin home */}
                   <Route path="/admin/loan-programs" element={<Navigate to="/admin" replace />} />
+                  <Route path="/admin/sso-settings" element={<Navigate to="/admin" replace />} />
+                  <Route path="/admin/cronjobs" element={<Navigate to="/admin" replace />} />
+                  <Route path="/admin/cronjob-logs" element={<Navigate to="/admin" replace />} />
+                  <Route path="/admin/hmda-reporting" element={<Navigate to="/admin" replace />} />
+                  <Route path="/admin/licensing-tracker" element={<Navigate to="/admin" replace />} />
+                  <Route path="/admin/meeting-analytics" element={<Navigate to="/admin" replace />} />
+                  <Route path="/admin/environment" element={<Navigate to="/admin" replace />} />
+                  <Route path="/admin/onboarding" element={<Navigate to="/admin" replace />} />
                 </Route>
               </Route>
             </Route>

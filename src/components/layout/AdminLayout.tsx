@@ -39,7 +39,7 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
     ? "pr-0 lg:pr-0 h-[calc(100vh-4rem)] overflow-hidden"
     : "";
 
-  if (isLoading && !isAdmin) {
+  if (((user && profileLoading) || permissionsLoading) && !isAdmin) {
     return (
       <div className={cn(rootHeightClass, "bg-background")}>
         <AdminSidebar />

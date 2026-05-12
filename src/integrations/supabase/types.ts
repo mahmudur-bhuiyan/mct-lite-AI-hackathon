@@ -50,6 +50,81 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_memories: {
+        Row: {
+          access_count: number
+          agent_id: string
+          consolidated: boolean
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          importance_score: number
+          is_active: boolean
+          last_accessed_at: string | null
+          memory_category: string | null
+          memory_type: string
+          source_id: string | null
+          source_type: string | null
+          superseded_by: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_count?: number
+          agent_id: string
+          consolidated?: boolean
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          importance_score?: number
+          is_active?: boolean
+          last_accessed_at?: string | null
+          memory_category?: string | null
+          memory_type?: string
+          source_id?: string | null
+          source_type?: string | null
+          superseded_by?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_count?: number
+          agent_id?: string
+          consolidated?: boolean
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          importance_score?: number
+          is_active?: boolean
+          last_accessed_at?: string | null
+          memory_category?: string | null
+          memory_type?: string
+          source_id?: string | null
+          source_type?: string | null
+          superseded_by?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_memories_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_memories_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "agent_memories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_agents: {
         Row: {
           category: string | null
@@ -548,6 +623,47 @@ export type Database = {
           },
         ]
       }
+      user_invites: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          role: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: string
+          token?: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_invites_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_permission_settings: {
         Row: {
           id: string
@@ -606,12 +722,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consolidate_short_term_memories: {
+        Args: { days_old?: number; p_agent_id: string; p_user_id: string }
+        Returns: number
+      }
+      get_relevant_memories: {
+        Args: {
+          match_count?: number
+          match_threshold?: number
+          p_agent_id: string
+          p_user_id: string
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          id: string
+          importance_score: number
+          memory_category: string
+          memory_type: string
+          similarity: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_memory_access: {
+        Args: { memory_ids: string[] }
+        Returns: undefined
       }
       log_activity: {
         Args: {
@@ -621,6 +762,15 @@ export type Database = {
           p_resource_type: string
         }
         Returns: string
+      }
+      prune_short_term_memories: {
+        Args: {
+          days_old?: number
+          importance_threshold?: number
+          p_agent_id: string
+          p_user_id: string
+        }
+        Returns: number
       }
     }
     Enums: {

@@ -14,15 +14,15 @@ export function FinalCTA() {
         
         <div className="px-8 py-16 sm:px-16 sm:py-20 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-primary-foreground sm:text-4xl lg:text-5xl">
-            Stop Flying Blind.
+            Ready to simplify your loan workflow?
           </h2>
           <p className="text-2xl md:text-3xl text-primary-foreground/80 font-medium mt-2">
-            Start Seeing Your Pipeline.
+            Less noise. Clear tasks. Shared knowledge.
           </p>
-          
+
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-primary-foreground/70">
-            Join mortgage operations teams who've traded fire drills for foresight. 
-            Get the visibility you've been asking for.
+            MCT Lite helps your team close the loop on status, action items, and borrower
+            follow-through — with AI that respects your roles and your docs.
           </p>
 
           {/* CTAs */}
@@ -55,15 +55,15 @@ export function FinalCTA() {
           <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-sm text-primary-foreground/70">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
-              <span>No credit card required</span>
+              <span>No credit card required to explore</span>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              <span>30-minute demo</span>
+              <span>Get your team on one workspace</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4" />
-              <span>See value in week one</span>
+              <span>Aligned with how MCT Lite ships today</span>
             </div>
           </div>
         </div>

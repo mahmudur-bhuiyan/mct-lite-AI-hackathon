@@ -23,16 +23,16 @@ export function HeroSection() {
               className="mb-6 rounded-full border-primary/30 bg-mortgage-teal-light px-4 py-1.5 text-sm font-medium text-primary"
             >
               <Shield className="mr-2 h-4 w-4 text-primary" />
-              Trusted by Mortgage Lenders & Brokers
+              Built for mortgage teams
             </Badge>
 
             {/* Headline */}
             <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
               <span className="bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent">
-                Catch Every Risk.
+                Your Loan Pipeline.
               </span>
               <br />
-              Close More Loans.
+              Your Team. One Hub.
             </h1>
             <p className="mt-2 text-sm font-medium text-muted-foreground">
               Mortgage Control Tower Lite
@@ -40,24 +40,24 @@ export function HeroSection() {
 
             {/* Subheadline */}
             <p className="mt-6 text-xl text-muted-foreground leading-relaxed max-w-xl">
-              The AI-powered command center that gives mortgage managers{" "}
-              <strong className="text-foreground">real-time visibility</strong> into every 
-              loan in their pipeline—without digging through spreadsheets or LOS reports.
+              Loan officers, support staff, and branch leads get{" "}
+              <strong className="text-foreground">AI action items</strong>, a shared knowledge
+              base, and live loan status — without spreadsheet chaos or feature bloat.
             </p>
 
             {/* Trust Indicators */}
             <div className="mt-8 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-2 rounded-full bg-mortgage-teal-light px-3 py-1.5">
-                <Link2 className="h-4 w-4 text-primary" />
-                <span className="text-foreground font-medium">LOS Integration</span>
+                <Brain className="h-4 w-4 text-primary" />
+                <span className="text-foreground font-medium">AI-powered</span>
               </div>
               <div className="flex items-center gap-2 rounded-full bg-mortgage-gold-light px-3 py-1.5">
-                <Shield className="h-4 w-4 text-accent" />
-                <span className="text-foreground font-medium">CRM Connected</span>
+                <Link2 className="h-4 w-4 text-accent" />
+                <span className="text-foreground font-medium">Borrower portal</span>
               </div>
               <div className="flex items-center gap-2 rounded-full bg-mortgage-green-light px-3 py-1.5">
-                <Brain className="h-4 w-4 text-success" />
-                <span className="text-foreground font-medium">AI-Powered</span>
+                <Shield className="h-4 w-4 text-success" />
+                <span className="text-foreground font-medium">Role-based access</span>
               </div>
             </div>
 
@@ -100,46 +100,46 @@ export function HeroSection() {
                   <div className="h-3 w-3 rounded-full bg-accent" />
                   <div className="h-3 w-3 rounded-full bg-success" />
                 </div>
-                <span className="text-xs font-medium text-muted-foreground">Pipeline Dashboard</span>
+                <span className="text-xs font-medium text-muted-foreground">MCT Lite snapshot</span>
               </div>
 
-              {/* Metrics Cards - Now with colors! */}
+              {/* Metrics Cards */}
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="rounded-lg bg-mortgage-red-light border border-destructive/20 p-4">
+                <div className="rounded-lg bg-mortgage-teal-light border border-primary/20 p-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="h-4 w-4 text-destructive" />
-                    <span className="text-xs text-destructive font-medium">Loans at Risk</span>
+                    <TrendingUp className="h-4 w-4 text-primary" />
+                    <span className="text-xs text-primary font-medium">My active loans</span>
                   </div>
-                  <p className="text-2xl font-bold text-destructive">7</p>
+                  <p className="text-2xl font-bold text-primary">24</p>
                 </div>
                 <div className="rounded-lg bg-mortgage-gold-light border border-accent/20 p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Clock className="h-4 w-4 text-accent" />
-                    <span className="text-xs text-accent font-medium">Lock Expirations</span>
+                    <span className="text-xs text-accent font-medium">Open action items</span>
                   </div>
-                  <p className="text-2xl font-bold text-accent">12</p>
-                </div>
-                <div className="rounded-lg bg-mortgage-teal-light border border-primary/20 p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                    <span className="text-xs text-primary font-medium">Active Loans</span>
-                  </div>
-                  <p className="text-2xl font-bold text-primary">156</p>
+                  <p className="text-2xl font-bold text-accent">9</p>
                 </div>
                 <div className="rounded-lg bg-mortgage-green-light border border-success/20 p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <CheckCircle className="h-4 w-4 text-success" />
-                    <span className="text-xs text-success font-medium">On-Time Rate</span>
+                    <span className="text-xs text-success font-medium">Knowledge docs</span>
                   </div>
-                  <p className="text-2xl font-bold text-success">94%</p>
+                  <p className="text-2xl font-bold text-success">47</p>
+                </div>
+                <div className="rounded-lg bg-mortgage-red-light border border-destructive/20 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                    <span className="text-xs text-destructive font-medium">Tasks due today</span>
+                  </div>
+                  <p className="text-2xl font-bold text-destructive">5</p>
                 </div>
               </div>
 
               {/* Pipeline Stages */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-foreground">Pipeline Progress</span>
-                  <span className="text-muted-foreground">By Stage</span>
+                  <span className="font-medium text-foreground">Loan stages</span>
+                  <span className="text-muted-foreground">Sample mix</span>
                 </div>
                 <div className="flex gap-1.5">
                   {[

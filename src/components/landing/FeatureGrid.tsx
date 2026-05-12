@@ -1,95 +1,65 @@
-import { 
-  Eye, 
-  AlertTriangle, 
-  Clock, 
-  Users, 
-  Brain, 
-  Link2, 
-  Bell,
-  Mail,
-  FileSearch,
-  MessageSquare
+import {
+  Banknote,
+  ListTodo,
+  BookOpen,
+  UserPlus,
+  Brain,
+  Shield,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const features = [
   {
-    icon: Eye,
-    title: "Real-Time Pipeline View",
-    description: "See every loan's status across all systems in one unified dashboard. Filter by risk, stage, processor, or deadline.",
+    icon: Banknote,
+    title: "Loan pipeline",
+    description:
+      "Track your open loans, milestones, and conditions. Loan officers see what they own; managers see branch context where permissions allow.",
     badge: "Core",
     badgeVariant: "secondary" as const,
     color: "primary",
   },
   {
-    icon: AlertTriangle,
-    title: "AI Risk Detection",
-    description: "Machine learning identifies loans likely to miss milestones based on historical patterns and current trajectory.",
+    icon: ListTodo,
+    title: "Daily action items",
+    description:
+      "AI-assisted prioritization highlights follow-ups before they slip. Pair with tasks and notifications so nothing gets lost between systems.",
     badge: "AI-Powered",
     badgeVariant: "default" as const,
     color: "primary",
   },
   {
-    icon: Clock,
-    title: "Lock Expiration Alerts",
-    description: "Never miss a rate lock again. Automated alerts at 7, 3, and 1 day before expiration with one-click extensions.",
-    badge: "Core",
-    badgeVariant: "secondary" as const,
-    color: "accent",
-  },
-  {
-    icon: Users,
-    title: "Processor Workload View",
-    description: "Balance your team's capacity. See each processor's active loans, pending conditions, and bottlenecks.",
-    badge: "Core",
-    badgeVariant: "secondary" as const,
-    color: "primary",
-  },
-  {
-    icon: Brain,
-    title: "Smart Prioritization",
-    description: "AI ranks today's most critical loans so your team knows exactly what to work on first every morning.",
-    badge: "AI-Powered",
-    badgeVariant: "default" as const,
-    color: "primary",
-  },
-  {
-    icon: Link2,
-    title: "LOS & CRM Integration",
-    description: "Connects to Encompass, Byte, and major CRMs. No double entry—data flows automatically.",
-    badge: "Integration",
-    badgeVariant: "outline" as const,
-    color: "accent",
-  },
-  {
-    icon: Mail,
-    title: "Email Intelligence Agent",
-    description: "AI reads your inbox, extracts action items, links emails to loans, and drafts replies for your approval.",
-    badge: "AI-Powered",
-    badgeVariant: "default" as const,
-    color: "primary",
-  },
-  {
-    icon: FileSearch,
-    title: "Document Reading Agent",
-    description: "Dual-provider AI (Landing AI + Google) extracts data from paystubs, W-2s, bank statements. Flags fraud automatically.",
+    icon: BookOpen,
+    title: "Knowledge base + search",
+    description:
+      "Store SOPs, investor overlays, and training docs in one library. Semantic search helps the team find the right paragraph fast.",
     badge: "AI-Powered",
     badgeVariant: "default" as const,
     color: "success",
   },
   {
-    icon: MessageSquare,
-    title: "Communication Center",
-    description: "Generate loan-related document drafts and borrower-facing updates from live data. Human approval before sending.",
+    icon: UserPlus,
+    title: "Borrower portal",
+    description:
+      "Invite borrowers to a secure space for document uploads and condition status — fewer email threads, clearer handoffs.",
+    badge: "Core",
+    badgeVariant: "secondary" as const,
+    color: "accent",
+  },
+  {
+    icon: Brain,
+    title: "AI chat",
+    description:
+      "Ask questions grounded in your knowledge base and safe loan context. Multi-provider routing behind the scenes.",
     badge: "AI-Powered",
     badgeVariant: "default" as const,
     color: "primary",
   },
   {
-    icon: Bell,
-    title: "Condition Tracking",
-    description: "Monitor outstanding conditions across all loans. Automatic reminders to borrowers and internal escalation.",
+    icon: Shield,
+    title: "Role-based workspace",
+    description:
+      "Admins, loan officers, branch managers, and support staff each see a tailored sidebar — minimal noise, right access.",
     badge: "Core",
     badgeVariant: "secondary" as const,
     color: "accent",
@@ -116,31 +86,32 @@ const iconColors = {
 
 export function FeatureGrid() {
   return (
-    <section className="bg-gradient-to-b from-mortgage-cream to-background">
+    <section id="features" className="bg-gradient-to-b from-mortgage-cream to-background scroll-mt-20">
       <div className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Everything You Need to <span className="text-primary">Manage Smarter</span>
+            What&apos;s in <span className="text-primary">MCT Lite</span>
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            Purpose-built features for mortgage operations teams. No bloat, no complexity—just 
-            the visibility you've been asking for.
+            A focused set of features for origination teams — pipeline, tasks, knowledge, AI, and
+            borrower collaboration. No pretend “full LOS replacement” pitch.
           </p>
         </div>
 
-        {/* Feature Grid */}
         <div className="mx-auto mt-16 grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => (
-            <Card 
-              key={feature.title} 
+            <Card
+              key={feature.title}
               className="group relative overflow-hidden border-border/50 bg-card transition-all hover:shadow-lg hover:border-primary/30"
             >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-xl border ${iconBgColors[feature.color as keyof typeof iconBgColors]}`}>
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl border ${iconBgColors[feature.color as keyof typeof iconBgColors]}`}
+                  >
                     <feature.icon className={`h-6 w-6 ${iconColors[feature.color as keyof typeof iconColors]}`} />
                   </div>
-                  <Badge 
+                  <Badge
                     variant={feature.badgeVariant}
                     className={`text-xs ${badgeStyles[feature.badgeVariant]}`}
                   >

@@ -26,7 +26,7 @@ export function ModuleRoute({
   requiresFeatureFlag,
   children,
 }: ModuleRouteProps) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, profileLoading } = useAuth();
   const { isFeatureEnabled, isLoading: flagsLoading } = useFeatureFlags();
   const { hasPermission, isLoading: permissionsLoading, isAdmin } = useEffectivePermissions();
   const { data: moduleList, isLoading: modulesLoading } = useModuleSettings();

@@ -186,11 +186,20 @@ describe("isAgentAllowedForUser", () => {
     });
   });
 
-  // Unknown slug: deny by default
+  // Unknown slug: deny when no DB policy passed; open when DB says so
   describe("unknown slug", () => {
-    it("denies access for any profile (explicit deny)", () => {
+    it("denies access when dbRequiredRole is omitted", () => {
       expect(isAgentAllowedForUser("some-unknown-agent", { role: "admin" })).toBe(false);
       expect(isAgentAllowedForUser("", { role: "admin" })).toBe(false);
+    });
+
+    it("allows any authenticated user when DB policy is empty (null)", () => {
+      expect(isAgentAllowedForUser("custom-sales-agent", { role: "user" }, null)).toBe(true);
+    });
+
+    it("restricts to listed roles when DB policy is set", () => {
+      expect(isAgentAllowedForUser("custom-sales-agent", { role: "user", customRoleName: "Loan Officer" }, "loan_officer")).toBe(true);
+      expect(isAgentAllowedForUser("custom-sales-agent", { role: "user" }, "loan_officer")).toBe(false);
     });
   });
 

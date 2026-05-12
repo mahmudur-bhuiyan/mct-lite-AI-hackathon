@@ -63,6 +63,8 @@ export interface AgentFormData {
   system_prompt: string;
   is_enabled: boolean;
   memory_enabled: boolean;
+  /** Required role(s) from DB for custom agents; comma-separated, e.g. "loan_officer, branch_manager". Empty = all authenticated users. */
+  required_role?: string | null;
   provider_config?: AgentProviderConfig;
   metadata?: AgentMetadata;
 }
@@ -149,7 +151,7 @@ export function useRoleFilteredAgents() {
   const data = useMemo(
     () =>
       (query.data ?? []).filter(
-        (agent) => agent.is_enabled && isAgentAllowedForUser(agent.slug, profile),
+        (agent) => agent.is_enabled && isAgentAllowedForUser(agent.slug, profile, agent.required_role),
       ),
     [query.data, profile],
   );
@@ -194,6 +196,7 @@ export function useCreateAgent() {
         system_prompt: data.system_prompt,
         is_enabled: data.is_enabled,
         memory_enabled: data.memory_enabled,
+        required_role: data.required_role?.trim() || null,
       };
       if (data.provider_config && Object.keys(data.provider_config).length > 0) {
         payload.provider_config = data.provider_config;
@@ -232,6 +235,7 @@ export function useUpdateAgent() {
       if (data.system_prompt !== undefined) payload.system_prompt = data.system_prompt;
       if (data.is_enabled !== undefined) payload.is_enabled = data.is_enabled;
       if (data.memory_enabled !== undefined) payload.memory_enabled = data.memory_enabled;
+      if (data.required_role !== undefined) payload.required_role = data.required_role?.trim() || null;
       if (data.provider_config !== undefined) payload.provider_config = data.provider_config;
       if (data.metadata !== undefined) payload.metadata = data.metadata;
       const { data: updated, error } = await supabase.from("ai_agents").update(payload).eq("id", id).select().single();

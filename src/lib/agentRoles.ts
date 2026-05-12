@@ -131,23 +131,29 @@ export const AGENT_ALLOWED_ROLES_BY_SLUG: Record<string, readonly string[] | nul
 /**
  * Returns true if the given user profile is allowed to use the named agent.
  *
- * Logic:
- *   1. If the slug is unknown → deny (explicit default).
- *   2. If allowedRoles is null → allow any authenticated user.
- *   3. Otherwise check profile roles against allowlist.
+ * - Known slugs use AGENT_ALLOWED_ROLES_BY_SLUG (code allowlist wins).
+ * - Other slugs: pass `dbRequiredRole` from `ai_agents.required_role`. Use `undefined` when the slug
+ *   is not tied to a DB row (unknown slugs are denied). Use `null` or `""` from the row for “any authenticated user”.
  */
 export function isAgentAllowedForUser(
   agentSlug: string,
   profile: RoleProfile | null | undefined,
+  dbRequiredRole?: string | null | undefined,
 ): boolean {
-  if (!(agentSlug in AGENT_ALLOWED_ROLES_BY_SLUG)) {
-    // Unknown agent slug — deny by default.
+  if (Object.prototype.hasOwnProperty.call(AGENT_ALLOWED_ROLES_BY_SLUG, agentSlug)) {
+    const allowedRoles = AGENT_ALLOWED_ROLES_BY_SLUG[agentSlug];
+    if (allowedRoles === null) return true;
+    return hasAnyRole(profile, allowedRoles);
+  }
+
+  if (dbRequiredRole === undefined) {
     return false;
   }
-  const allowedRoles = AGENT_ALLOWED_ROLES_BY_SLUG[agentSlug];
-  if (allowedRoles === null) {
-    // No role restriction — any authenticated user may access.
-    return true;
-  }
-  return hasAnyRole(profile, allowedRoles);
+
+  const raw = (dbRequiredRole ?? "").trim();
+  if (!raw) return true;
+
+  const parts = raw.split(/[,;]+/).map((s) => normalizeRoleString(s)).filter(Boolean);
+  if (parts.length === 0) return true;
+  return hasAnyRole(profile, parts);
 }

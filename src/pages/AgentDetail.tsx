@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/accordion";
 import { getAgentUserGuide, getFallbackGuide } from "@/lib/agentUserGuides";
 import { useAIAgents, type AIAgent, type AgentMetadata } from "@/hooks/useAIAgents";
+import { useAuth } from "@/contexts/AuthContext";
+import { isAgentAllowedForUser } from "@/lib/agentRoles";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -48,12 +50,17 @@ export default function AgentDetail() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { profile } = useAuth();
   const loanContext = (location.state as { loanContext?: Record<string, unknown> } | null)?.loanContext;
   const { data: dbAgents = [] } = useAIAgents();
 
   const selectedAgent = dbAgents.find((a) => a.slug === slug && a.is_enabled);
 
-  if (!selectedAgent) {
+  const allowed =
+    selectedAgent &&
+    isAgentAllowedForUser(selectedAgent.slug, profile, selectedAgent.required_role ?? null);
+
+  if (!selectedAgent || !allowed) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <p className="text-lg font-semibold text-foreground">Agent not found</p>

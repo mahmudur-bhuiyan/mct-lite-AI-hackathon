@@ -471,6 +471,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile,
     session,
     loading,
+    profileLoading,
     signIn,
     signUp,
     signInWithGoogle,

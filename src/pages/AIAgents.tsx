@@ -636,7 +636,7 @@ export default function AIAgents() {
                         <SearchableSelect
                           value={formData.model}
                           onChange={(v) => patch({ model: v })}
-                          options={AI_MODELS_BY_PROVIDER[formData.provider].map((m) => ({ value: m.value, label: m.label }))}
+                          options={(AI_MODELS_BY_PROVIDER[formData.provider] ?? []).map((m) => ({ value: m.value, label: m.label }))}
                         />
                       </div>
 

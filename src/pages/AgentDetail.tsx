@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import * as LucideIcons from "lucide-react";
-import { ArrowLeft, ExternalLink, Bot, Sparkles, Zap, BookOpen, MapPin, MessageSquare } from "lucide-react";
+import { ArrowLeft, ExternalLink, Bot, Sparkles, Zap, BookOpen, MapPin, MessageSquare, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,6 +14,7 @@ import { getAgentUserGuide, getFallbackGuide } from "@/lib/agentUserGuides";
 import { useAIAgents, type AIAgent, type AgentMetadata } from "@/hooks/useAIAgents";
 import { useAuth } from "@/contexts/AuthContext";
 import { isAgentAllowedForUser } from "@/lib/agentRoles";
+import { CustomizeAgentDialog } from "@/components/ai/CustomizeAgentDialog";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -53,6 +55,7 @@ export default function AgentDetail() {
   const { profile } = useAuth();
   const loanContext = (location.state as { loanContext?: Record<string, unknown> } | null)?.loanContext;
   const { data: dbAgents = [] } = useAIAgents();
+  const [customizeOpen, setCustomizeOpen] = useState(false);
 
   const selectedAgent = dbAgents.find((a) => a.slug === slug && a.is_enabled);
 
@@ -168,6 +171,10 @@ export default function AgentDetail() {
                   Go to {whereToFind.label}
                 </Button>
               )}
+              <Button variant="outline" size="sm" onClick={() => setCustomizeOpen(true)}>
+                <Settings className="h-3.5 w-3.5 mr-2" />
+                Customize
+              </Button>
             </div>
           </div>
 
@@ -356,6 +363,13 @@ export default function AgentDetail() {
           )}
         </div>
       </div>
+      <CustomizeAgentDialog
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        agentId={selectedAgent.id}
+        agentName={selectedAgent.name}
+        baseSystemPrompt={selectedAgent.system_prompt ?? ""}
+      />
     </div>
   );
 }

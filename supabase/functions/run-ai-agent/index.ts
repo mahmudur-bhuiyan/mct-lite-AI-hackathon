@@ -187,8 +187,36 @@ serve(async (req) => {
       }
     }
 
+    // Per-user customization override (system prompt + extra knowledge entries)
+    let customSystemPrompt: string | null = null;
+    let customKnowledgeIds: string[] = [];
+    if (userId) {
+      try {
+        const { data: cust } = await service
+          .from('user_agent_customizations')
+          .select('system_prompt_override, knowledge_entry_ids')
+          .eq('agent_id', agent.id)
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (cust) {
+          customSystemPrompt =
+            typeof cust.system_prompt_override === 'string' && cust.system_prompt_override.trim().length > 0
+              ? cust.system_prompt_override
+              : null;
+          customKnowledgeIds = Array.isArray(cust.knowledge_entry_ids)
+            ? (cust.knowledge_entry_ids as unknown[]).filter(
+                (x): x is string => typeof x === 'string' && x.length > 0,
+              )
+            : [];
+        }
+      } catch (e) {
+        console.warn('run-ai-agent: customization lookup failed (non-fatal):', e);
+      }
+    }
+
     // Build messages array (system prompt loaded from DB, not from client)
-    const systemPrompt = (agent.system_prompt || 'You are a helpful AI assistant.') + personalizationPrompt;
+    const baseSystemPrompt = customSystemPrompt ?? agent.system_prompt ?? 'You are a helpful AI assistant.';
+    const systemPrompt = baseSystemPrompt + personalizationPrompt;
 
     let contextBlock = '';
     if (context && Object.keys(context).length > 0) {
@@ -255,9 +283,10 @@ serve(async (req) => {
     const agentTools = resolveAgentToolsFromMetadata(metadata);
 
     const knowledgeSearchScope: KnowledgeSearchScope | undefined = (() => {
-      const entryIds = Array.isArray(metadata.knowledge_entry_ids)
+      const baseEntryIds = Array.isArray(metadata.knowledge_entry_ids)
         ? (metadata.knowledge_entry_ids as unknown[]).filter((x): x is string => typeof x === 'string' && x.length > 0)
         : [];
+      const entryIds = Array.from(new Set([...baseEntryIds, ...customKnowledgeIds]));
       const categoryIds = Array.isArray(metadata.knowledge_category_ids)
         ? (metadata.knowledge_category_ids as unknown[]).filter((x): x is string => typeof x === 'string' && x.length > 0)
         : [];

@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import * as LucideIcons from "lucide-react";
-import { ArrowLeft, ExternalLink, Bot, Sparkles, Zap, BookOpen, MapPin, MessageSquare } from "lucide-react";
+import { ArrowLeft, ExternalLink, Bot, Sparkles, Zap, BookOpen, MapPin, MessageSquare, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,6 +14,7 @@ import { getAgentUserGuide, getFallbackGuide } from "@/lib/agentUserGuides";
 import { useAIAgents, type AIAgent, type AgentMetadata } from "@/hooks/useAIAgents";
 import { useAuth } from "@/contexts/AuthContext";
 import { isAgentAllowedForUser } from "@/lib/agentRoles";
+import { CustomizeAgentDialog } from "@/components/ai/CustomizeAgentDialog";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

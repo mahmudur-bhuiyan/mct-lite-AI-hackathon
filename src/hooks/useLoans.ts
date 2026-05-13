@@ -93,7 +93,7 @@ async function fetchLoans(filters?: LoanQueryFilters): Promise<LoansPaginatedRes
   let query = supabase
     .from("loans")
     .select(
-      "*, borrowers(first_name, last_name, email), loan_risk_scores(risk_level, overall_risk_score)",
+      "*, borrowers(first_name, last_name, email)",
       { count: paginated ? "exact" : undefined },
     )
     .order("created_at", { ascending: false });
@@ -113,13 +113,7 @@ async function fetchLoans(filters?: LoanQueryFilters): Promise<LoansPaginatedRes
   const { data, error, count } = await query;
   if (error) throw error;
   const rows = (data ?? []) as Record<string, unknown>[];
-  const mapped = rows.map((row) => {
-    const raw = row.loan_risk_scores;
-    const loan_risk_scores = Array.isArray(raw)
-      ? (raw[0] as Loan["loan_risk_scores"]) ?? null
-      : (raw as Loan["loan_risk_scores"]) ?? null;
-    return { ...row, loan_risk_scores } as Loan;
-  });
+  const mapped = rows.map((row) => ({ ...row, loan_risk_scores: null } as Loan));
   return { rows: mapped, totalCount: count ?? mapped.length };
 }
 

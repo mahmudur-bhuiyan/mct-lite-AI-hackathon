@@ -275,6 +275,7 @@ export async function getProviderApiKey(provider: LLMProvider): Promise<string |
   }
 
   const envMap: Record<LLMProvider, string> = {
+    lovable: 'LOVABLE_API_KEY',
     openai: 'OPENAI_API_KEY',
     anthropic: 'ANTHROPIC_API_KEY',
     google: 'GOOGLE_AI_API_KEY',

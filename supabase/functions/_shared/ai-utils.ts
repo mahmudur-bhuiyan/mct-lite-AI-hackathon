@@ -250,7 +250,7 @@ export async function chatCompletion(
  * 'openai' is the default. Other providers can be enabled by storing
  * their API keys in integration_settings using their provider_name.
  */
-export type LLMProvider = 'openai' | 'anthropic' | 'google' | 'perplexity';
+export type LLMProvider = 'lovable' | 'openai' | 'anthropic' | 'google' | 'perplexity';
 
 /**
  * Retrieves an API key for the given provider from integration_settings or env vars.

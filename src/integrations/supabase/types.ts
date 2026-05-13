@@ -866,6 +866,39 @@ export type Database = {
           },
         ]
       }
+      user_agent_customizations: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          knowledge_entry_ids: string[]
+          notes: string | null
+          system_prompt_override: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          knowledge_entry_ids?: string[]
+          notes?: string | null
+          system_prompt_override?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          knowledge_entry_ids?: string[]
+          notes?: string | null
+          system_prompt_override?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_invites: {
         Row: {
           created_at: string

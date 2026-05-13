@@ -1,55 +1,55 @@
-## Problem
+## Goal
 
-After signing in (admin or user), the app briefly flashes **"Access Denied — restricted to administrators only"** before the real page renders. For non-admin users, the same banner also appears on some routes that should silently redirect.
+- Remove the **AI Chat** sidebar entry (the standalone `/ai` page).
+- **AI Agents** page already lists only `is_enabled` admin-created agents — keep that, polish UX so a click goes straight to chat.
+- Loan officers (and other non-admin users with allowed roles) can **customize** an enabled agent (override system prompt, attach their own Knowledge Base entries) without affecting other users.
+- Chat history per agent stays persisted (already on `ai_chat_threads` + `ai_chat_messages`).
 
-## Root Cause
+## Changes
 
-In `src/contexts/AuthContext.tsx`:
+### 1. Hide AI Chat in the sidebar
+- In `src/components/layout/AppSidebar.tsx`, remove the `AI Chat` item from `aiToolsItems` and drop `/ai` from `loanOfficerNavAllow` / `userRoleNavAllow`.
+- Keep the `/ai` route mounted in `App.tsx` so deep links don't 404, but it's no longer reachable from nav.
 
-- `loading` is flipped to `false` immediately when `onAuthStateChange` fires.
-- The actual profile + role lookup (`fetchProfile` → `fetchUserRole`) is deferred via `setTimeout(..., 0)` and runs asynchronously.
-- Result: there is a window where `user` is set, `loading === false`, but `profile` is still `null` (so `profile.role` is `undefined`).
+### 2. AI Agents browse → click goes straight to chat
+- `src/pages/AgentsBrowse.tsx`:
+  - Card primary CTA changes from **Learn More** → **Chat** and routes to `/agents/{agent.id}/chat`.
+  - Avatar buttons in the team header also navigate to chat.
+  - Add a small secondary `Details` link to keep `AgentDetail` accessible (so users can still read the user guide).
+- `useRoleFilteredAgents` already filters to `is_enabled && allowed-for-role` — no change.
 
-The guards then misbehave during that window:
+### 3. Per-user agent customization (LO “train it on my data”)
+New table + UI so LOs adapt an agent without editing the global row.
 
-- `src/components/auth/AdminRoute.tsx` — checks `profile?.role === "admin"`. With profile still null it renders the destructive **Access Denied** alert instead of waiting.
-- `src/components/routing/ModuleRoute.tsx` — when a `requiredRole` is set, calls `checkRole(profile?.role, requiredRole)` with `undefined` and shows the same Access Denied alert for normal users on role-gated routes.
-- `src/components/layout/AdminLayout.tsx` — uses `useEffectivePermissions().isLoading`, which only becomes true once a `customRoleId` is known; before profile loads it is `false`, so the layout does not gate either.
+- New migration creating `public.user_agent_customizations`:
+  - `user_id uuid`, `agent_id uuid`, `system_prompt_override text`, `knowledge_entry_ids uuid[]`, `notes text`, timestamps. Unique `(user_id, agent_id)`.
+  - RLS: a user can SELECT/INSERT/UPDATE/DELETE only their own row; admins manage all.
+- New hook `useAgentCustomization(agentId)` (read + upsert).
+- New page/dialog `Customize Agent` reachable from each agent card and from `AgentChat` header (gear icon already there). It lets the user:
+  - Edit a personal system-prompt override (textarea, prefilled with the agent's base prompt).
+  - Pick Knowledge Base entries from `useKnowledge()` (multi-select) to attach as scope.
+  - Save / Reset to default.
 
-This is why admins see a flash and regular users see Access Denied on some routes (any route wrapped in `ModuleRoute requiredRole="..."`).
+### 4. Wire customization into chat
+- `supabase/functions/run-ai-agent/index.ts`: before assembling the system prompt, look up `user_agent_customizations` for `(auth.uid(), agent_id)`. If present:
+  - Replace base `system_prompt` with the override.
+  - Add the selected `knowledge_entry_ids` to the knowledge-scope filter that the agent already uses.
+- No change to provider routing or memory pipeline.
 
-## Fix
+### 5. Sidebar wiring & cleanup
+- Verify `loanOfficerNavAllow` still keeps `/agents`.
+- No removal of `AIChat` page file (kept for `/ai` direct link), only removed from nav.
 
-Make profile/role loading a first-class loading state and have all role guards wait for it.
+## Acceptance test
 
-### 1. `src/contexts/AuthContext.tsx`
-- Add `profileLoading` state (default `true` while a session exists but profile hasn't resolved).
-- Set `profileLoading = true` whenever a session is detected and `fetchProfile` starts; set it to `false` in a `finally` block inside `fetchProfile`.
-- When there is no session, set `profileLoading = false`.
-- Expose `profileLoading` via `AuthContextType` (and a convenience `authReady = !loading && (!user || !profileLoading)`).
+1. Sidebar: no **AI Chat** entry; **AI Agents** is still visible.
+2. `/agents` shows only enabled agents allowed for the user's role.
+3. Clicking an agent card → opens `/agents/{id}/chat`; messages stream and reload from history on revisit.
+4. As LO: open **Customize**, edit prompt + select 2 knowledge entries, save. Next chat reply uses the override and cites attached knowledge.
+5. As another user: same agent uses the original/global system prompt — customizations are not shared.
 
-### 2. `src/components/auth/AdminRoute.tsx`
-- Treat `loading || (user && profileLoading)` as the loading state and render the existing spinner.
-- Only render the Access Denied alert once profile has loaded and `profile.role !== "admin"`.
+## Out of scope
 
-### 3. `src/components/routing/ModuleRoute.tsx`
-- Include `profileLoading` (when `user` is present) in the early loading branch so the spinner shows instead of the Access Denied alert during the role-resolution window.
-- Keep existing permission/feature-flag/module checks unchanged.
-
-### 4. `src/components/layout/AdminLayout.tsx`
-- Extend the loading branch to also wait while `profileLoading` is true, so the layout does not briefly render the inner Access Denied alert from `useEffectivePermissions`.
-
-### 5. (Optional, low-risk) `src/components/routing/CalendarRoleRoute.tsx`
-- Same pattern: wait for `profileLoading` before deciding to `Navigate` away.
-
-## Out of Scope
-
-- No changes to RLS, migrations, role data, edge functions, or the existing `OpenAI not configured` runtime error (separate Admin → Integrations setup task).
-- No refactor of `useEffectivePermissions` beyond what's needed for the loading gate.
-
-## How to test
-
-1. Hard refresh, sign in as `admin@demo.co` → land on `/admin`. Expect a brief spinner, then the admin dashboard. **No Access Denied flash.**
-2. Sign out, sign in as `lo@demo.co` → land on `/dashboard`. Visit a Loan Officer route (e.g. `/loans`). Expect spinner then content, no Access Denied banner.
-3. Sign out, sign in as `user@demo.co`. Try to visit `/admin` directly → should show Access Denied (correct, after profile loads). Visit `/knowledge` and `/ai-chat` → load normally with no flash.
-4. Refresh the page while already signed in as each role — same behavior, no flash.
+- No edits to global `ai_agents` rows by non-admins.
+- No changes to provider/model routing or Lovable AI Gateway fallback.
+- No new admin screens — Admin → AI Agents already manages base agents.

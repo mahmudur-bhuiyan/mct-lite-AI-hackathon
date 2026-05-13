@@ -105,14 +105,6 @@ const navigationItems: SidebarItem[] = [
 
 const aiToolsItems: SidebarItem[] = [
   {
-    title: "AI Chat",
-    href: "/ai",
-    icon: Brain,
-    isAI: true,
-    permission: permissionKey("ai_chat", "read"),
-    featureFlag: "enableAIChat",
-  },
-  {
     title: "AI Agents",
     href: "/agents",
     icon: Bot,

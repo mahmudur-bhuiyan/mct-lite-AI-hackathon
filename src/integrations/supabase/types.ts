@@ -236,54 +236,77 @@ export type Database = {
         Row: {
           address_line1: string | null
           address_line2: string | null
+          api_payload: Json | null
           city: string | null
           created_at: string
           created_by: string | null
+          data_source: string | null
           date_of_birth: string | null
           email: string | null
+          external_id: string | null
           first_name: string
+          hmda_ethnicity?: string | null
+          hmda_income?: number | null
+          hmda_race?: string | null
+          hmda_sex?: string | null
           id: string
           last_name: string
           notes: string | null
           phone: string | null
+          postal_code: string | null
           ssn_last4: string | null
           state: string | null
+          street_address: string | null
           updated_at: string
           zip_code: string | null
         }
         Insert: {
           address_line1?: string | null
           address_line2?: string | null
+          api_payload?: Json | null
           city?: string | null
           created_at?: string
           created_by?: string | null
+          data_source?: string | null
           date_of_birth?: string | null
           email?: string | null
+          external_id?: string | null
           first_name: string
+          hmda_ethnicity?: string | null
+          hmda_income?: number | null
+          hmda_race?: string | null
+          hmda_sex?: string | null
           id?: string
           last_name: string
           notes?: string | null
           phone?: string | null
+          postal_code?: string | null
           ssn_last4?: string | null
           state?: string | null
+          street_address?: string | null
           updated_at?: string
           zip_code?: string | null
         }
         Update: {
           address_line1?: string | null
           address_line2?: string | null
+          api_payload?: Json | null
           city?: string | null
           created_at?: string
           created_by?: string | null
+          data_source?: string | null
           date_of_birth?: string | null
           email?: string | null
+          external_id?: string | null
           first_name?: string
           id?: string
           last_name?: string
           notes?: string | null
           phone?: string | null
+          postal_code?: string | null
           ssn_last4?: string | null
           state?: string | null
+          street_address?: string | null
           updated_at?: string
           zip_code?: string | null
         }

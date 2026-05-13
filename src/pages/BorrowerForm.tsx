@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,8 +33,8 @@ const borrowerFormSchema = z.object({
   ssn_last4: z.string().max(4).optional(),
   date_of_birth: z.string().optional(),
   street_address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
+  city: z.string().min(1, "City is required"),
+  state: z.string().min(1, "State is required").length(2, "Use a valid state"),
   postal_code: z.string().optional(),
 });
 
@@ -45,6 +45,8 @@ export default function BorrowerForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isEdit = !!id;
+  const countyListId = useId();
+  const cityListId = useId();
 
   const { data: borrower, isLoading: loadingBorrower } = useBorrower(id);
   const createBorrower = useCreateBorrower();
@@ -66,16 +68,25 @@ export default function BorrowerForm() {
   const autofilled = useRef<{ zip?: string }>({});
 
   const stateValue = watch("state");
-  const cityValue  = watch("city");
-  const zipValue   = watch("postal_code");
+  const cityValue = watch("city");
 
   const { data: usCounties = [], isLoading: loadingCounties } = useUSCountiesByState(stateValue);
-  const { data: usCities   = [], isLoading: loadingCities   } = useUSCitiesByStateCounty(stateValue, countyValue);
+  const { data: usCities = [], isLoading: loadingCities } = useUSCitiesByStateCounty(
+    stateValue,
+    countyValue
+  );
   const { lookupByCityState, debounced, loading: zipcodeLoading } = useZipcodeAutofill();
+
+  const {
+    onChange: cityOnChange,
+    onBlur: cityOnBlur,
+    ref: cityRef,
+    ...cityRegisterRest
+  } = register("city");
 
   // City selected → auto-fill ZIP
   useEffect(() => {
-    const city  = cityValue?.trim() ?? "";
+    const city = cityValue?.trim() ?? "";
     const state = (stateValue?.trim() ?? "").toUpperCase();
     if (!city || city.length < 2 || state.length !== 2) return;
     debounced(async () => {
@@ -85,8 +96,23 @@ export default function BorrowerForm() {
         setValue("postal_code", result.zip, { shouldDirty: true });
       }
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cityValue]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cityValue, stateValue]);
+
+  // Infer county from city when zip DB has a match (skip if user already typed a county)
+  useEffect(() => {
+    const city = cityValue?.trim() ?? "";
+    const state = (stateValue?.trim() ?? "").toUpperCase();
+    const countyTouched = (countyValue?.trim() ?? "").length > 0;
+    if (!city || state.length !== 2 || countyTouched) return;
+    let cancelled = false;
+    void lookupCountyByCity(state, city).then((c) => {
+      if (!cancelled && c) setCountyValue(c);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [cityValue, stateValue, countyValue]);
 
   useEffect(() => {
     if (borrower) {
@@ -97,10 +123,10 @@ export default function BorrowerForm() {
         phone: borrower.phone ?? "",
         ssn_last4: borrower.ssn_last4 ?? "",
         date_of_birth: borrower.date_of_birth ?? "",
-        street_address: borrower.street_address ?? "",
+        street_address: borrower.street_address ?? borrower.address_line1 ?? "",
         city: borrower.city ?? "",
         state: borrower.state ?? "",
-        postal_code: borrower.postal_code ?? "",
+        postal_code: borrower.postal_code ?? borrower.zip_code ?? "",
       });
     }
   }, [borrower, reset]);
@@ -196,9 +222,7 @@ export default function BorrowerForm() {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" {...register("email")} />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
+              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
@@ -219,7 +243,9 @@ export default function BorrowerForm() {
           <CardHeader>
             <CardTitle>Address</CardTitle>
             <CardDescription className="text-xs">
-              Select state → county → city and ZIP will auto-populate.
+              Choose state, then type or pick county and city. Suggestions appear when ZIP reference
+              data is loaded; you can always type a value. ZIP may auto-fill from city when data is
+              available.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
@@ -231,86 +257,103 @@ export default function BorrowerForm() {
             {/* ── State ── */}
             <div className="space-y-2">
               <div className="flex items-baseline justify-between">
-                <Label>State <span className="text-destructive">*</span></Label>
+                <Label>
+                  State <span className="text-destructive">*</span>
+                </Label>
               </div>
               <SearchableSelect
                 value={watch("state") || "__none__"}
                 onChange={(v) => {
                   const next = v === "__none__" ? "" : v;
-                  setValue("state", next, { shouldDirty: true });
+                  setValue("state", next, { shouldDirty: true, shouldValidate: true });
                   setCountyValue(null);
-                  setValue("city", "", { shouldDirty: true });
+                  setValue("city", "", { shouldDirty: true, shouldValidate: true });
                   setValue("postal_code", "", { shouldDirty: true });
                 }}
                 placeholder="Select state"
                 clearable
                 options={US_STATES}
               />
+              {errors.state && <p className="text-sm text-destructive">{errors.state.message}</p>}
             </div>
 
-            {/* ── County ── */}
+            {/* ── County (typeable + datalist) ── */}
             <div className="space-y-2">
               <div className="flex items-baseline justify-between">
                 <Label>County</Label>
                 {stateValue?.trim() && !loadingCounties && (
-                  <span className="text-xs text-muted-foreground">{usCounties.length} counties</span>
+                  <span className="text-xs text-muted-foreground">{usCounties.length} suggestions</span>
                 )}
               </div>
-              <SearchableSelect
-                value={countyValue || "__none__"}
-                onChange={(v) => {
-                  setCountyValue(v === "__none__" ? null : v);
-                  setValue("city", "", { shouldDirty: true });
+              <Input
+                id="county"
+                aria-label="County"
+                value={countyValue ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setCountyValue(v || null);
+                  setValue("city", "", { shouldDirty: true, shouldValidate: true });
                   setValue("postal_code", "", { shouldDirty: true });
                 }}
-                placeholder={
-                  !stateValue?.trim() ? "Select state first"
-                    : loadingCounties  ? "Loading counties…"
-                    : "Select county"
-                }
                 disabled={!stateValue?.trim()}
-                clearable
-                options={
-                  loadingCounties
-                    ? [{ value: "__loading__", label: "Loading…" }]
-                    : usCounties.map((c) => ({ value: c, label: c }))
+                placeholder={
+                  !stateValue?.trim()
+                    ? "Select state first"
+                    : loadingCounties
+                      ? "Loading suggestions…"
+                      : "Type county or pick from list"
                 }
+                autoComplete="off"
+                list={usCounties.length > 0 ? countyListId : undefined}
               />
+              {usCounties.length > 0 && (
+                <datalist id={countyListId}>
+                  {usCounties.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              )}
             </div>
 
-            {/* ── City ── */}
+            {/* ── City (typeable + datalist) ── */}
             <div className="space-y-2">
               <div className="flex items-baseline justify-between">
-                <Label>City <span className="text-destructive">*</span></Label>
+                <Label>
+                  City <span className="text-destructive">*</span>
+                </Label>
                 {stateValue?.trim() && !loadingCities && (
-                  <span className="text-xs text-muted-foreground">{usCities.length} cities</span>
+                  <span className="text-xs text-muted-foreground">{usCities.length} suggestions</span>
                 )}
               </div>
-              <SearchableSelect
-                value={watch("city") || "__none__"}
-                onChange={async (v) => {
-                  if (v === "__loading__") return;
-                  const city = v === "__none__" ? "" : v;
-                  setValue("city", city, { shouldDirty: true });
-                  setValue("postal_code", "", { shouldDirty: true });
-                  if (city && !countyValue && stateValue?.trim()) {
-                    const county = await lookupCountyByCity(stateValue, city);
-                    if (county) setCountyValue(county);
-                  }
-                }}
-                placeholder={
-                  !stateValue?.trim() ? "Select state first"
-                    : loadingCities    ? "Loading cities…"
-                    : "Select city"
-                }
+              <Input
+                id="city"
+                aria-label="City"
                 disabled={!stateValue?.trim()}
-                clearable
-                options={
-                  loadingCities
-                    ? [{ value: "__loading__", label: "Loading…" }]
-                    : usCities.map((c) => ({ value: c, label: c }))
+                {...cityRegisterRest}
+                ref={cityRef}
+                onChange={(e) => {
+                  cityOnChange(e);
+                  setValue("postal_code", "", { shouldDirty: true });
+                }}
+                onBlur={cityOnBlur}
+                placeholder={
+                  !stateValue?.trim()
+                    ? "Select state first"
+                    : loadingCities
+                      ? "Loading suggestions…"
+                      : "Type city or pick from list"
                 }
+                autoComplete="off"
+                list={usCities.length > 0 ? cityListId : undefined}
               />
+              {usCities.length > 0 && (
+                <datalist id={cityListId}>
+                  {usCities.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              )}
+              {errors.city && <p className="text-sm text-destructive">{errors.city.message}</p>}
             </div>
 
             {/* ── Postal code ── */}

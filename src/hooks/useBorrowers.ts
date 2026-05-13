@@ -16,6 +16,10 @@ export interface Borrower {
   city: string | null;
   state: string | null;
   postal_code: string | null;
+  /** Legacy scaffold column; prefer street_address after migration. */
+  address_line1?: string | null;
+  /** Legacy scaffold column; prefer postal_code after migration. */
+  zip_code?: string | null;
   data_source: string | null;
   external_id: string | null;
   api_payload: Json | null;

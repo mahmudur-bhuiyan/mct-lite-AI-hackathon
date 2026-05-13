@@ -292,6 +292,7 @@ export type Database = {
       document_extracts: {
         Row: {
           byte_size: number | null
+          content_embedding: string | null
           created_at: string
           extracted_text: string | null
           file_name: string
@@ -313,6 +314,7 @@ export type Database = {
         }
         Insert: {
           byte_size?: number | null
+          content_embedding?: string | null
           created_at?: string
           extracted_text?: string | null
           file_name: string
@@ -334,6 +336,7 @@ export type Database = {
         }
         Update: {
           byte_size?: number | null
+          content_embedding?: string | null
           created_at?: string
           extracted_text?: string | null
           file_name?: string

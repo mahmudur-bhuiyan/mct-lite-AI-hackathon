@@ -55,6 +55,7 @@ export default function AgentDetail() {
   const { profile } = useAuth();
   const loanContext = (location.state as { loanContext?: Record<string, unknown> } | null)?.loanContext;
   const { data: dbAgents = [] } = useAIAgents();
+  const [customizeOpen, setCustomizeOpen] = useState(false);
 
   const selectedAgent = dbAgents.find((a) => a.slug === slug && a.is_enabled);
 

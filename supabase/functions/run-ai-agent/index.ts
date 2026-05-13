@@ -283,9 +283,10 @@ serve(async (req) => {
     const agentTools = resolveAgentToolsFromMetadata(metadata);
 
     const knowledgeSearchScope: KnowledgeSearchScope | undefined = (() => {
-      const entryIds = Array.isArray(metadata.knowledge_entry_ids)
+      const baseEntryIds = Array.isArray(metadata.knowledge_entry_ids)
         ? (metadata.knowledge_entry_ids as unknown[]).filter((x): x is string => typeof x === 'string' && x.length > 0)
         : [];
+      const entryIds = Array.from(new Set([...baseEntryIds, ...customKnowledgeIds]));
       const categoryIds = Array.isArray(metadata.knowledge_category_ids)
         ? (metadata.knowledge_category_ids as unknown[]).filter((x): x is string => typeof x === 'string' && x.length > 0)
         : [];

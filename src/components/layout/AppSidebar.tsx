@@ -137,13 +137,11 @@ export function AppSidebar() {
   const loanOfficerNavAllow = new Set<string>([
     "/dashboard",
     "/loans",
-    "/pipeline/hubspot",
     "/borrowers",
     "/tasks",
     "/action-items",
     "/knowledge",
     "/notifications",
-    "/ai",
     "/agents",
   ]);
   /** App role `user` (support/processor): minimal nav — no pipeline, borrowers, or agent catalog. */
@@ -155,7 +153,6 @@ export function AppSidebar() {
     "/action-items",
     "/knowledge",
     "/notifications",
-    "/ai",
   ]);
 
   const agentEnabledMap: Record<string, boolean> = {

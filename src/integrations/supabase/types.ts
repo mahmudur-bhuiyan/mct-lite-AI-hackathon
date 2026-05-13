@@ -417,44 +417,141 @@ export type Database = {
         }
         Relationships: []
       }
+      knowledge_categories: {
+        Row: {
+          aliases: string[]
+          archived_at: string | null
+          color: string | null
+          created_at: string
+          deprecated_at: string | null
+          description: string | null
+          effective_date: string | null
+          governance_owner_role: string | null
+          icon: string | null
+          id: string
+          is_regulatory_critical: boolean
+          lifecycle_state: string
+          metadata: Json
+          name: string
+          parent_id: string | null
+          review_cadence_days: number | null
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          archived_at?: string | null
+          color?: string | null
+          created_at?: string
+          deprecated_at?: string | null
+          description?: string | null
+          effective_date?: string | null
+          governance_owner_role?: string | null
+          icon?: string | null
+          id?: string
+          is_regulatory_critical?: boolean
+          lifecycle_state?: string
+          metadata?: Json
+          name: string
+          parent_id?: string | null
+          review_cadence_days?: number | null
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          archived_at?: string | null
+          color?: string | null
+          created_at?: string
+          deprecated_at?: string | null
+          description?: string | null
+          effective_date?: string | null
+          governance_owner_role?: string | null
+          icon?: string | null
+          id?: string
+          is_regulatory_critical?: boolean
+          lifecycle_state?: string
+          metadata?: Json
+          name?: string
+          parent_id?: string | null
+          review_cadence_days?: number | null
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_entries: {
         Row: {
           author_id: string | null
           category: string | null
+          category_id: string | null
           content: string | null
           created_at: string
           created_by: string | null
           id: string
           metadata: Json | null
+          slug: string | null
+          status: string | null
+          summary: string | null
           tags: string[] | null
           title: string
           updated_at: string
+          view_count: number
         }
         Insert: {
           author_id?: string | null
           category?: string | null
+          category_id?: string | null
           content?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           metadata?: Json | null
+          slug?: string | null
+          status?: string | null
+          summary?: string | null
           tags?: string[] | null
           title: string
           updated_at?: string
+          view_count?: number
         }
         Update: {
           author_id?: string | null
           category?: string | null
+          category_id?: string | null
           content?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
           metadata?: Json | null
+          slug?: string | null
+          status?: string | null
+          summary?: string | null
           tags?: string[] | null
           title?: string
           updated_at?: string
+          view_count?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_entries_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       loans: {
         Row: {

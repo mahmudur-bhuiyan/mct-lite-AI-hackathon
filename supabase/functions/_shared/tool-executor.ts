@@ -184,17 +184,53 @@ export async function executeBuiltInTool(
       }
 
       case 'search_knowledge_base': {
-        const query = String(args.query ?? '');
+        const raw = String(args.query ?? '').trim();
         const limit = Math.min(Number(args.limit ?? 5), 15);
+        if (!raw) {
+          result = [];
+          break;
+        }
+        const safe = raw.replace(/%/g, '').replace(/,/g, ' ');
+        const pattern = `%${safe}%`;
 
-        const { data, error } = await supabase
+        const { data: entryRows, error: entErr } = await supabase
           .from('knowledge_entries')
-          .select('id, title, content, category, created_at')
-          .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
+          .select('id, title, content, summary, created_at')
+          .or(`title.ilike.${pattern},content.ilike.${pattern},summary.ilike.${pattern}`)
           .limit(limit);
 
-        if (error) throw error;
-        result = data ?? [];
+        if (entErr) throw entErr;
+
+        const { data: extractRows, error: exErr } = await supabase
+          .from('document_extracts')
+          .select('extracted_text, word_count, file_name, parse_status, knowledge_entry_id, knowledge_entries(id, title)')
+          .eq('parse_status', 'done')
+          .ilike('extracted_text', pattern)
+          .limit(limit);
+
+        if (exErr) throw exErr;
+
+        const fromEntries = (entryRows ?? []).map((r) => ({
+          source: 'knowledge_entry' as const,
+          id: r.id,
+          title: r.title,
+          excerpt: (r.summary ?? r.content ?? '').slice(0, 1200),
+          created_at: r.created_at,
+        }));
+
+        const fromExtracts = (extractRows ?? []).map((r) => {
+          const ke = r.knowledge_entries as { id?: string; title?: string } | null;
+          return {
+            source: 'document_extract' as const,
+            knowledge_entry_id: r.knowledge_entry_id,
+            title: ke?.title ?? r.file_name ?? 'Document',
+            excerpt: (r.extracted_text ?? '').slice(0, 1200),
+            word_count: r.word_count,
+            file_name: r.file_name,
+          };
+        });
+
+        result = [...fromExtracts, ...fromEntries].slice(0, limit);
         break;
       }
 

@@ -707,7 +707,8 @@ export default function AIAgents() {
                           id: "knowledge_base",
                           icon: Brain,
                           label: "Knowledge Base",
-                          description: "Allow the agent to query documents in your knowledge base",
+                          description:
+                            "Search published knowledge articles and server-parsed document text (uploads)",
                         },
                         {
                           id: "data_analysis",

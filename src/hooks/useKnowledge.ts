@@ -126,7 +126,6 @@ export function useCreateKnowledgeEntry() {
   return useMutation({
     mutationFn: async (data: KnowledgeEntryFormData): Promise<KnowledgeEntry> => {
       if (!user) throw new Error("User not authenticated");
-      if (!data.category) throw new Error("Category is required for knowledge entries");
 
       // Generate slug from title
       const slug = data.title
@@ -182,9 +181,6 @@ export function useUpdateKnowledgeEntry() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<KnowledgeEntryFormData> }): Promise<KnowledgeEntry> => {
-      if (data.category !== undefined && !data.category) {
-        throw new Error("Category is required for knowledge entries");
-      }
       const updateData: any = {};
       
       if (data.title !== undefined) updateData.title = data.title;
@@ -612,6 +608,26 @@ export function useRelatedEntries(entryId: string, limit: number = 5) {
       return data || [];
     },
     enabled: !!entryId,
+  });
+}
+
+/** Admin: parsed document rows with optional joined entry title (requires document_extracts_select_staff policy). */
+export function useDocumentExtractsAdmin(limit = 200) {
+  return useQuery({
+    queryKey: [...queryKeys.knowledge.all, "document-extracts", limit],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("document_extracts")
+        .select(`
+          *,
+          knowledge_entries ( id, title, slug )
+        `)
+        .order("parsed_at", { ascending: false, nullsFirst: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return data ?? [];
+    },
   });
 }
 

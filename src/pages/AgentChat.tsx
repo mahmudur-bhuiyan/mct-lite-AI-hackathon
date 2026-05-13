@@ -154,7 +154,9 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
   const adminSidebar = useAdminSidebar();
   const { data: agent, isLoading: agentLoading } = useAIAgent(agentId ?? "");
   const activeProvider: LlmProvider = resolveLlmProviderFromConfig(agent?.provider_config);
-  const { data: activeIntegration } = useIntegrationSetting(isAdmin ? activeProvider : "");
+  const { data: activeIntegration } = useIntegrationSetting(
+    isAdmin && activeProvider !== "lovable" ? activeProvider : ""
+  );
 
   // Collapse the correct sidebar by default: admin sidebar when in admin panel, app sidebar when under /ai
   useEffect(() => {
@@ -206,17 +208,21 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
     });
   }, []);
 
+  // Lovable uses LOVABLE_API_KEY on the edge — no integration_settings row required.
   const isProviderReady =
     !isAdmin ||
+    activeProvider === "lovable" ||
     (!!activeIntegration?.api_key && activeIntegration.is_active !== false);
   const providerLabel =
-    activeProvider === "google"
-      ? "Google AI"
-      : activeProvider === "anthropic"
-        ? "Anthropic"
-        : activeProvider === "perplexity"
-          ? "Perplexity"
-        : "OpenAI";
+    activeProvider === "lovable"
+      ? "Lovable AI"
+      : activeProvider === "google"
+        ? "Google AI"
+        : activeProvider === "anthropic"
+          ? "Anthropic"
+          : activeProvider === "perplexity"
+            ? "Perplexity"
+            : "OpenAI";
 
   // Fetch threads list and load most recent thread for this user + agent
   const fetchThreads = useCallback(async () => {

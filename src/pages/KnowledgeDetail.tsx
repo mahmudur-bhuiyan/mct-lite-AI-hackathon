@@ -1,6 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { queryKeys } from "@/lib/cache";
+import { toast } from "sonner";
 import {
   useKnowledgeEntry,
   useDeleteKnowledgeEntry,
@@ -36,9 +39,9 @@ import {
   Eye,
   Calendar,
   Tag,
-  User,
   Download,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -46,9 +49,12 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function KnowledgeDetail() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  
+  const [reparsing, setReparsing] = useState(false);
+  const [signedUrl, setSignedUrl] = React.useState<string | null>(null);
+
   const { data: entry, isLoading, error } = useKnowledgeEntry(id || "");
   const deleteEntry = useDeleteKnowledgeEntry();
   const incrementViewCount = useIncrementViewCount();
@@ -69,22 +75,54 @@ export default function KnowledgeDetail() {
     }
   };
 
-  const canEdit = user && entry && entry.author_id === user.id;
+  const canEdit = Boolean(user && entry && entry.author_id === user.id);
   const fileUrl = entry?.metadata?.file_url;
   const fileName = entry?.metadata?.file_name;
   const filePath = entry?.metadata?.file_path;
+  const storageBucket =
+    typeof entry?.metadata?.storage_bucket === "string" && entry.metadata.storage_bucket
+      ? entry.metadata.storage_bucket
+      : "user-knowledge";
   const isPdf = entry?.metadata?.is_pdf || fileName?.toLowerCase().endsWith('.pdf');
   const hasExtractedContent = entry?.metadata?.has_extracted_content;
+  const parseStatus = entry?.metadata?.parse_status as string | undefined;
+  const placeholderUpload =
+    typeof entry?.content === "string" && entry.content.includes("This file has been uploaded");
+  const showReparse =
+    Boolean(canEdit && filePath &&
+      (parseStatus === "error" ||
+        hasExtractedContent !== true ||
+        placeholderUpload));
+
+  const handleReparse = async () => {
+    if (!id || !canEdit) return;
+    setReparsing(true);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("parse-document", {
+        body: { knowledge_entry_id: id, storage_bucket: storageBucket },
+      });
+      if (fnError) throw fnError;
+      if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
+        toast.error((data as { error: string }).error);
+        return;
+      }
+      toast.success("Document text extracted successfully.");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.entry(id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.entries() });
+    } catch (err) {
+      toast.error((err as Error)?.message ?? "Could not extract text from the file.");
+    } finally {
+      setReparsing(false);
+    }
+  };
 
   // For private buckets, generate signed URL
-  const [signedUrl, setSignedUrl] = React.useState<string | null>(null);
-  
   React.useEffect(() => {
     const getSignedUrl = async () => {
       if (filePath && !hasExtractedContent) {
         try {
           const { data, error: urlError } = await supabase.storage
-            .from("user-knowledge")
+            .from(storageBucket)
             .createSignedUrl(filePath, 3600);
           if (!urlError && data?.signedUrl) {
             setSignedUrl(data.signedUrl);
@@ -95,7 +133,7 @@ export default function KnowledgeDetail() {
       }
     };
     getSignedUrl();
-  }, [filePath, hasExtractedContent]);
+  }, [filePath, hasExtractedContent, storageBucket]);
 
   if (isLoading) {
     return (
@@ -209,6 +247,21 @@ export default function KnowledgeDetail() {
                 </AlertDialogContent>
               </AlertDialog>
             </>
+          )}
+          {canEdit && showReparse && (
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={reparsing}
+              onClick={() => void handleReparse()}
+            >
+              {reparsing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Extract text again
+            </Button>
           )}
           {fileUrl && (
             <Button

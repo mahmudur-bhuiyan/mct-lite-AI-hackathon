@@ -1,15 +1,17 @@
 /**
- * parse-document — Extract text from uploaded Knowledge files (PDF, DOCX, XLSX, TXT, MD, JSON).
- * POST { knowledge_entry_id: string }
+ * parse-document — Extract text from uploaded Knowledge files (PDF, DOCX, XLSX, PPTX, TXT, MD, JSON).
+ * POST { knowledge_entry_id: string, storage_bucket?: "user-knowledge" | "loan-borrower-uploads" }
  * Authorization: Bearer <jwt>
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, jsonResp } from '../_shared/ai-utils.ts';
+import { assertStaffCanAccessLoan } from '../_shared/staff-loan-access.ts';
 
 const MAX_CONTENT_CHARS = 1_200_000;
 const BUCKET_DEFAULT = 'user-knowledge';
+const ALLOWED_BUCKETS = ['user-knowledge', 'loan-borrower-uploads'] as const;
 
 interface KnowledgeMetadata {
   file_path?: string;
@@ -17,6 +19,43 @@ interface KnowledgeMetadata {
   file_type?: string;
   file_url?: string;
   mime_type?: string;
+  storage_bucket?: string;
+}
+
+function scheduleGenerateEmbeddings(
+  supabaseUrl: string,
+  anonKey: string,
+  authHeader: string | null,
+  knowledgeEntryId: string,
+  text: string,
+): void {
+  if (!authHeader || !text.trim()) return;
+  const url = `${supabaseUrl}/functions/v1/generate-embeddings`;
+  const p = fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authHeader,
+      apikey: anonKey,
+    },
+    body: JSON.stringify({
+      entity_type: 'knowledge_entry',
+      entity_id: knowledgeEntryId,
+      content: text.slice(0, 8000),
+    }),
+  })
+    .then(async (r) => {
+      if (!r.ok) {
+        const t = await r.text();
+        console.warn('generate-embeddings:', r.status, t);
+      }
+    })
+    .catch((e) => console.warn('generate-embeddings trigger:', e));
+
+  const edge = (globalThis as Record<string, unknown>)['EdgeRuntime'] as
+    | { waitUntil?: (x: Promise<unknown>) => void }
+    | undefined;
+  edge?.waitUntil?.(p);
 }
 
 async function loadRoleFlags(service: ReturnType<typeof createClient>, userId: string) {
@@ -115,6 +154,48 @@ async function parseBytes(
     };
   }
 
+  if (
+    effectiveMime === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+    lower.endsWith('.pptx')
+  ) {
+    const JSZip = (await import('https://esm.sh/jszip@3.10.1')).default;
+    const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    const zip = await JSZip.loadAsync(ab);
+    const slideNames = Object.keys(zip.files)
+      .filter((n) => /^ppt\/slides\/slide\d+\.xml$/i.test(n))
+      .sort((a, b) => {
+        const na = parseInt(a.match(/slide(\d+)/i)?.[1] ?? '0', 10);
+        const nb = parseInt(b.match(/slide(\d+)/i)?.[1] ?? '0', 10);
+        return na - nb;
+      });
+
+    const slideBodies: string[] = [];
+    for (const name of slideNames) {
+      const f = zip.file(name);
+      if (!f) continue;
+      const xml = await f.async('string');
+      const stripped = xml
+        .replace(/<a:t>/g, '\n')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (stripped.length) slideBodies.push(stripped);
+    }
+
+    const text = slideBodies.join('\n\n').trim();
+    const sections = slideBodies.length
+      ? slideBodies.map((body, i) => ({ title: `Slide ${i + 1}`, page: i + 1, text: body }))
+      : [{ title: 'Presentation', page: null, text: text || '(no extractable text in slides)' }];
+
+    return {
+      text: text || '(no extractable text in slides)',
+      pageCount: slideNames.length || null,
+      sections,
+      tablesJson: [],
+      extraMeta: { parser: 'pptx', slides: slideNames.length },
+    };
+  }
+
   if (effectiveMime === 'application/pdf' || lower.endsWith('.pdf')) {
     try {
       const { extractText, getDocumentProxy } = await import('npm:unpdf@0.12.1');
@@ -142,7 +223,9 @@ async function parseBytes(
     }
   }
 
-  throw new Error(`Unsupported type: ${effectiveMime}. Supported: PDF, DOCX, XLSX, TXT, MD, JSON.`);
+  throw new Error(
+    `Unsupported type: ${effectiveMime}. Supported: PDF, DOCX, XLSX, PPTX, TXT, MD, JSON.`,
+  );
 }
 
 serve(async (req) => {
@@ -166,6 +249,7 @@ serve(async (req) => {
   if (!authHeader?.startsWith('Bearer ')) {
     return jsonResp({ error: 'Unauthorized' }, 401);
   }
+  const authorizationHeader = authHeader;
 
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: authHeader } },
@@ -178,7 +262,7 @@ serve(async (req) => {
 
   const service = createClient(supabaseUrl, serviceRoleKey);
 
-  let body: { knowledge_entry_id?: string };
+  let body: { knowledge_entry_id?: string; storage_bucket?: string };
   try {
     body = await req.json();
   } catch {
@@ -214,10 +298,42 @@ serve(async (req) => {
     return jsonResp({ error: 'No file_path on knowledge entry metadata' }, 400);
   }
 
+  const requestedBucket = typeof body.storage_bucket === 'string' ? body.storage_bucket.trim() : '';
+  const metaBucket = typeof meta.storage_bucket === 'string' ? meta.storage_bucket.trim() : '';
+  const storageBucket = (requestedBucket || metaBucket || BUCKET_DEFAULT).toLowerCase();
+
+  if (!ALLOWED_BUCKETS.includes(storageBucket as (typeof ALLOWED_BUCKETS)[number])) {
+    return jsonResp(
+      { error: `Invalid storage_bucket. Allowed: ${ALLOWED_BUCKETS.join(', ')}` },
+      400,
+    );
+  }
+
+  if (storageBucket === 'loan-borrower-uploads') {
+    const { data: uploadRow, error: upErr } = await service
+      .from('loan_borrower_uploads')
+      .select('loan_id')
+      .eq('storage_path', storagePath)
+      .maybeSingle();
+
+    if (upErr) {
+      console.error('loan_borrower_uploads lookup:', upErr.message);
+      return jsonResp({ error: 'Upload lookup failed' }, 500);
+    }
+    if (!uploadRow?.loan_id) {
+      return jsonResp({ error: 'File not found for this storage path' }, 404);
+    }
+
+    const access = await assertStaffCanAccessLoan(userClient, service, userId, uploadRow.loan_id);
+    if (!access.ok) {
+      return jsonResp({ error: access.message }, access.status);
+    }
+  }
+
   const fileName = meta.file_name || storagePath.split('/').pop() || 'document';
   const mimeHint = meta.mime_type || meta.file_type || '';
 
-  const { data: fileData, error: dlErr } = await service.storage.from(BUCKET_DEFAULT).download(storagePath);
+  const { data: fileData, error: dlErr } = await service.storage.from(storageBucket).download(storagePath);
   if (dlErr || !fileData) {
     console.error('Storage download error:', dlErr?.message);
     return jsonResp({ error: 'Failed to download file from storage' }, 500);
@@ -233,7 +349,7 @@ serve(async (req) => {
     await service.from('document_extracts').delete().eq('knowledge_entry_id', knowledgeEntryId);
     await service.from('document_extracts').insert({
       knowledge_entry_id: knowledgeEntryId,
-      storage_bucket: BUCKET_DEFAULT,
+      storage_bucket: storageBucket,
       storage_path: storagePath,
       file_name: fileName,
       mime_type: mimeHint || null,
@@ -242,6 +358,14 @@ serve(async (req) => {
       parse_error: msg,
       uploaded_by: userId,
     });
+    const errMeta = {
+      ...(entry.metadata as Record<string, unknown> ?? {}),
+      storage_bucket: storageBucket,
+      parse_status: 'error',
+      parse_error: msg,
+      has_extracted_content: false,
+    };
+    await service.from('knowledge_entries').update({ metadata: errMeta }).eq('id', knowledgeEntryId);
     return jsonResp({ error: msg, parse_status: 'error' }, 422);
   }
 
@@ -254,7 +378,7 @@ serve(async (req) => {
     .from('document_extracts')
     .insert({
       knowledge_entry_id: knowledgeEntryId,
-      storage_bucket: BUCKET_DEFAULT,
+      storage_bucket: storageBucket,
       storage_path: storagePath,
       file_name: fileName,
       mime_type: mimeHint || null,
@@ -280,11 +404,13 @@ serve(async (req) => {
 
   const nextMeta = {
     ...(entry.metadata as Record<string, unknown> ?? {}),
+    storage_bucket: storageBucket,
     parse_status: 'done',
     document_extract_id: extractRow?.id,
     parser: (parsed.extraMeta as { parser?: string }).parser ?? 'text',
     word_count: wordCount,
     page_count: parsed.pageCount,
+    has_extracted_content: true,
   };
 
   const { error: upErr } = await service
@@ -299,6 +425,8 @@ serve(async (req) => {
     console.error('knowledge_entries update:', upErr.message);
     return jsonResp({ error: 'Parsed but failed to update knowledge entry' }, 500);
   }
+
+  scheduleGenerateEmbeddings(supabaseUrl, anonKey, authorizationHeader, knowledgeEntryId, text);
 
   return jsonResp({
     ok: true,

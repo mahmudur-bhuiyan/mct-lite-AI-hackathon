@@ -56,12 +56,19 @@ export default function KnowledgeUpload() {
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       "application/json",
       "text/markdown",
     ];
 
     const validFiles = selectedFiles.filter((file) => {
-      if (!allowedTypes.includes(file.type) && !file.name.endsWith(".md") && !file.name.endsWith(".json") && !file.name.endsWith(".xlsx")) {
+      if (
+        !allowedTypes.includes(file.type) &&
+        !file.name.endsWith(".md") &&
+        !file.name.endsWith(".json") &&
+        !file.name.endsWith(".xlsx") &&
+        !file.name.endsWith(".pptx")
+      ) {
         toast.error(`${file.name}: Unsupported file type`);
         return false;
       }
@@ -249,6 +256,7 @@ export default function KnowledgeUpload() {
           metadata: {
             file_url: fileUrl,
             file_path: filePath,
+            storage_bucket: "user-knowledge",
             file_name: fileName,
             file_type: fileExtension,
             mime_type: files[index]?.file?.type || null,
@@ -270,7 +278,7 @@ export default function KnowledgeUpload() {
 
       try {
         const { error: parseFnErr } = await supabase.functions.invoke("parse-document", {
-          body: { knowledge_entry_id: entry.id },
+          body: { knowledge_entry_id: entry.id, storage_bucket: "user-knowledge" },
         });
         if (parseFnErr) {
           console.warn("parse-document:", parseFnErr.message);
@@ -428,7 +436,7 @@ export default function KnowledgeUpload() {
               multiple
               onChange={handleFileChange}
               disabled={uploading}
-              accept=".pdf,.txt,.doc,.docx,.md,.json,.xlsx"
+              accept=".pdf,.txt,.doc,.docx,.md,.json,.xlsx,.pptx"
             />
           </div>
 

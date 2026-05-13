@@ -3,12 +3,19 @@
  * Edge routing lives in `supabase/functions/_shared/ai-utils.ts` — keep provider slugs aligned.
  */
 
-export type LlmProvider = "openai" | "google" | "anthropic" | "perplexity";
+export type LlmProvider = "lovable" | "openai" | "google" | "anthropic" | "perplexity";
 
-/** When `provider_config` omits `provider`, default to Google (Gemini) — matches `run-ai-agent` + typical Lovable setup with `integration_settings.google`. */
-export const DEFAULT_AGENT_LLM_PROVIDER: LlmProvider = "google";
+/**
+ * Default to Lovable AI Gateway — it's a zero-config seed provider (LOVABLE_API_KEY
+ * is auto-provisioned in Supabase Edge env) so agents work out-of-the-box.
+ * Admins can switch to OpenAI/Anthropic/Google once they've configured their own key
+ * in Admin → Integrations; the edge dispatcher will use that key when present and
+ * automatically fall back to Lovable AI if not.
+ */
+export const DEFAULT_AGENT_LLM_PROVIDER: LlmProvider = "lovable";
 
 export const LLM_PROVIDER_OPTIONS: Array<{ value: LlmProvider; label: string }> = [
+  { value: "lovable", label: "Lovable AI (default — no API key needed)" },
   { value: "google", label: "Google AI (Gemini)" },
   { value: "openai", label: "OpenAI" },
   { value: "anthropic", label: "Anthropic" },
@@ -16,6 +23,13 @@ export const LLM_PROVIDER_OPTIONS: Array<{ value: LlmProvider; label: string }> 
 ];
 
 export const AI_MODELS_BY_PROVIDER: Record<LlmProvider, Array<{ value: string; label: string }>> = {
+  lovable: [
+    { value: "google/gemini-3-flash-preview", label: "Gemini 3 Flash — Fast, balanced (recommended)" },
+    { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash — Cost-efficient" },
+    { value: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro — Strong reasoning" },
+    { value: "openai/gpt-5-mini", label: "GPT-5 Mini — Fast OpenAI" },
+    { value: "openai/gpt-5", label: "GPT-5 — Highest quality OpenAI" },
+  ],
   google: [
     { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash — Fast and cost-efficient" },
     { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite — Lowest latency/cost" },
@@ -42,13 +56,14 @@ export const AI_MODELS_BY_PROVIDER: Record<LlmProvider, Array<{ value: string; l
 };
 
 export const DEFAULT_MODEL_BY_PROVIDER: Record<LlmProvider, string> = {
+  lovable: "google/gemini-3-flash-preview",
   google: "gemini-2.0-flash",
   openai: "gpt-4o-mini",
   anthropic: "claude-3-5-haiku-latest",
   perplexity: "llama-3.1-sonar-small-128k-online",
 };
 
-const VALID = new Set(["openai", "google", "anthropic", "perplexity"]);
+const VALID = new Set(["lovable", "openai", "google", "anthropic", "perplexity"]);
 
 export function getDefaultModelForProvider(provider: LlmProvider): string {
   return DEFAULT_MODEL_BY_PROVIDER[provider];

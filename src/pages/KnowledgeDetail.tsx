@@ -8,6 +8,7 @@ import {
   useKnowledgeEntry,
   useDeleteKnowledgeEntry,
   useIncrementViewCount,
+  useDocumentExtractForEntry,
 } from "@/hooks/useKnowledge";
 import { RelatedArticles } from "@/components/knowledge/RelatedArticles";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import {
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function KnowledgeDetail() {
@@ -58,6 +60,7 @@ export default function KnowledgeDetail() {
   const { data: entry, isLoading, error } = useKnowledgeEntry(id || "");
   const deleteEntry = useDeleteKnowledgeEntry();
   const incrementViewCount = useIncrementViewCount();
+  const { data: docExtract } = useDocumentExtractForEntry(id || "");
 
   useEffect(() => {
     if (id) {
@@ -76,7 +79,6 @@ export default function KnowledgeDetail() {
   };
 
   const canEdit = Boolean(user && entry && entry.author_id === user.id);
-  const fileUrl = entry?.metadata?.file_url;
   const fileName = entry?.metadata?.file_name;
   const filePath = entry?.metadata?.file_path;
   const storageBucket =
@@ -84,15 +86,19 @@ export default function KnowledgeDetail() {
       ? entry.metadata.storage_bucket
       : "user-knowledge";
   const isPdf = entry?.metadata?.is_pdf || fileName?.toLowerCase().endsWith('.pdf');
-  const hasExtractedContent = entry?.metadata?.has_extracted_content;
   const parseStatus = entry?.metadata?.parse_status as string | undefined;
   const placeholderUpload =
     typeof entry?.content === "string" && entry.content.includes("This file has been uploaded");
-  const showReparse =
-    Boolean(canEdit && filePath &&
+  const extractDone =
+    docExtract?.parse_status === "done" && (docExtract?.extracted_text?.length ?? 0) > 0;
+  const showReparse = Boolean(
+    canEdit &&
+      filePath &&
       (parseStatus === "error" ||
-        hasExtractedContent !== true ||
-        placeholderUpload));
+        docExtract?.parse_status === "error" ||
+        !extractDone ||
+        placeholderUpload),
+  );
 
   const handleReparse = async () => {
     if (!id || !canEdit) return;
@@ -109,6 +115,7 @@ export default function KnowledgeDetail() {
       toast.success("Document text extracted successfully.");
       await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.entry(id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.entries() });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.documentExtract(id) });
     } catch (err) {
       toast.error((err as Error)?.message ?? "Could not extract text from the file.");
     } finally {
@@ -116,24 +123,33 @@ export default function KnowledgeDetail() {
     }
   };
 
-  // For private buckets, generate signed URL
+  // Private buckets: always use signed URLs for view/download (public URLs are invalid).
   React.useEffect(() => {
-    const getSignedUrl = async () => {
-      if (filePath && !hasExtractedContent) {
-        try {
-          const { data, error: urlError } = await supabase.storage
-            .from(storageBucket)
-            .createSignedUrl(filePath, 3600);
-          if (!urlError && data?.signedUrl) {
-            setSignedUrl(data.signedUrl);
-          }
-        } catch {
-          // Bucket or file not found — skip PDF viewer
-        }
+    let cancelled = false;
+    async function loadSignedUrl() {
+      if (!filePath) {
+        setSignedUrl(null);
+        return;
       }
+      try {
+        const { data, error: urlError } = await supabase.storage
+          .from(storageBucket)
+          .createSignedUrl(filePath, 3600);
+        if (cancelled) return;
+        if (urlError || !data?.signedUrl) {
+          setSignedUrl(null);
+        } else {
+          setSignedUrl(data.signedUrl);
+        }
+      } catch {
+        if (!cancelled) setSignedUrl(null);
+      }
+    }
+    void loadSignedUrl();
+    return () => {
+      cancelled = true;
     };
-    getSignedUrl();
-  }, [filePath, hasExtractedContent, storageBucket]);
+  }, [filePath, storageBucket]);
 
   if (isLoading) {
     return (
@@ -263,14 +279,24 @@ export default function KnowledgeDetail() {
               Extract text again
             </Button>
           )}
-          {fileUrl && (
+          {filePath && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.open(fileUrl, "_blank")}
+              disabled={!signedUrl}
+              onClick={() => {
+                if (signedUrl) window.open(signedUrl, "_blank");
+                else toast.error("Could not open file. Check storage bucket and permissions.");
+              }}
             >
               <Download className="mr-2 h-4 w-4" />
               Download File
+            </Button>
+          )}
+          {filePath && signedUrl && !isPdf && (
+            <Button variant="outline" size="sm" onClick={() => window.open(signedUrl, "_blank")}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View file
             </Button>
           )}
         </div>
@@ -284,6 +310,62 @@ export default function KnowledgeDetail() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">{entry.summary}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Server-parsed document text & structure */}
+      {id && filePath && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Extracted document</CardTitle>
+            <CardDescription>
+              Parser output (searchable via the Knowledge Base agent tool). Re-run extraction if this is empty or
+              wrong.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!docExtract && (
+              <p className="text-sm text-muted-foreground">
+                No extract row yet — parsing may still be running, or the document needs to be processed again.
+              </p>
+            )}
+            {docExtract && (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant={docExtract.parse_status === "done" ? "secondary" : "outline"}>
+                    {docExtract.parse_status}
+                  </Badge>
+                  {docExtract.word_count != null && <span>{docExtract.word_count} words</span>}
+                  {docExtract.parsed_at && <span>Parsed {formatDate(docExtract.parsed_at)}</span>}
+                </div>
+                {docExtract.parse_error && (
+                  <p className="text-sm text-destructive">{docExtract.parse_error}</p>
+                )}
+                <Tabs defaultValue="text" className="w-full">
+                  <TabsList>
+                    <TabsTrigger value="text">Text</TabsTrigger>
+                    <TabsTrigger value="sections">Sections (JSON)</TabsTrigger>
+                    <TabsTrigger value="tables">Tables (JSON)</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="text" className="mt-3">
+                    <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md border bg-muted/30 p-4 text-sm">
+                      {docExtract.extracted_text?.trim() || "—"}
+                    </pre>
+                  </TabsContent>
+                  <TabsContent value="sections" className="mt-3">
+                    <pre className="max-h-96 overflow-auto rounded-md border bg-muted/30 p-4 text-xs font-mono">
+                      {JSON.stringify(docExtract.sections ?? [], null, 2)}
+                    </pre>
+                  </TabsContent>
+                  <TabsContent value="tables" className="mt-3">
+                    <pre className="max-h-96 overflow-auto rounded-md border bg-muted/30 p-4 text-xs font-mono">
+                      {JSON.stringify(docExtract.tables_json ?? [], null, 2)}
+                    </pre>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

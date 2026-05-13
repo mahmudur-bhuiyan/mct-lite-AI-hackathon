@@ -83,6 +83,43 @@ export function useKnowledgeEntries(filters?: Record<string, any>) {
   });
 }
 
+export interface DocumentExtractRow {
+  id: string;
+  knowledge_entry_id: string | null;
+  parse_status: string;
+  parse_error: string | null;
+  word_count: number | null;
+  page_count: number | null;
+  extracted_text: string | null;
+  sections: unknown;
+  tables_json: unknown;
+  file_name: string;
+  parsed_at: string | null;
+}
+
+/** Published knowledge entry: server-parsed document row (RLS: author or staff). */
+export function useDocumentExtractForEntry(knowledgeEntryId: string) {
+  return useQuery({
+    queryKey: queryKeys.knowledge.documentExtract(knowledgeEntryId),
+    queryFn: async (): Promise<DocumentExtractRow | null> => {
+      const { data, error } = await supabase
+        .from("document_extracts")
+        .select(
+          "id, knowledge_entry_id, parse_status, parse_error, word_count, page_count, extracted_text, sections, tables_json, file_name, parsed_at",
+        )
+        .eq("knowledge_entry_id", knowledgeEntryId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn("document_extracts:", error.message);
+        return null;
+      }
+      return data as DocumentExtractRow | null;
+    },
+    enabled: !!knowledgeEntryId,
+  });
+}
+
 export function useKnowledgeEntry(id: string) {
   return useQuery({
     queryKey: queryKeys.knowledge.entry(id),

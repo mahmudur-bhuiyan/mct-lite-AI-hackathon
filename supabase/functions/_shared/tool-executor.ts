@@ -11,7 +11,7 @@
  *   3. Optionally surface the slug in ai_agents.tools_config to opt-in agents.
  */
 
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ToolDefinition } from './ai-utils.ts';
 
 // ── Built-in tool catalogue ───────────────────────────────────────────────────
@@ -104,6 +104,66 @@ export const BUILT_IN_TOOLS: Record<string, ToolDefinition> = {
   },
 };
 
+/** Maps admin UI tool toggles (`ai_agents.metadata.tools`) to built-in function names. */
+const UI_TOOL_SLUG_TO_BUILTIN: Record<string, string> = {
+  knowledge_base: 'search_knowledge_base',
+};
+
+export interface KnowledgeSearchScope {
+  entryIds?: string[];
+  categoryIds?: string[];
+}
+
+export interface BuiltInToolOptions {
+  knowledgeSearchScope?: KnowledgeSearchScope;
+}
+
+async function resolveAllowedKnowledgeEntryIds(
+  supabase: SupabaseClient,
+  scope: KnowledgeSearchScope | undefined,
+): Promise<string[] | null> {
+  if (!scope) return null;
+  const e = (scope.entryIds ?? []).filter((x): x is string => typeof x === 'string' && x.length > 0);
+  const c = (scope.categoryIds ?? []).filter((x): x is string => typeof x === 'string' && x.length > 0);
+  if (e.length === 0 && c.length === 0) return null;
+
+  const idSet = new Set<string>(e);
+  if (c.length > 0) {
+    const { data } = await supabase.from('knowledge_entries').select('id').in('category_id', c);
+    for (const row of data ?? []) {
+      if (row && typeof (row as { id?: string }).id === 'string') {
+        idSet.add((row as { id: string }).id);
+      }
+    }
+  }
+  return Array.from(idSet);
+}
+
+/**
+ * Resolve OpenAI tool definitions for an agent.
+ * If `metadata.tools_config` is a non-empty array, merges with the full built-in catalogue (legacy).
+ * Otherwise uses `metadata.tools` boolean map to opt in only to implemented tools (e.g. knowledge_base).
+ */
+export function resolveAgentToolsFromMetadata(metadata: Record<string, unknown>): ToolDefinition[] {
+  const rawToolsConfig = Array.isArray(metadata.tools_config) ? (metadata.tools_config as unknown[]) : [];
+  if (rawToolsConfig.length > 0) {
+    return resolveAgentTools(rawToolsConfig);
+  }
+
+  const toggles = metadata.tools as Record<string, boolean> | undefined;
+  if (!toggles || typeof toggles !== 'object') return [];
+
+  const defs: ToolDefinition[] = [];
+  for (const [uiSlug, on] of Object.entries(toggles)) {
+    if (!on) continue;
+    const builtinKey = UI_TOOL_SLUG_TO_BUILTIN[uiSlug];
+    if (builtinKey && BUILT_IN_TOOLS[builtinKey]) {
+      defs.push(BUILT_IN_TOOLS[builtinKey]);
+    }
+  }
+  return defs;
+}
+
 // ── Executor ─────────────────────────────────────────────────────────────────
 
 export interface ToolCallResult {
@@ -111,6 +171,7 @@ export interface ToolCallResult {
   name: string;
   content: string; // JSON-serialised result returned to the model
 }
+
 
 /**
  * Execute a single tool call requested by the model.
@@ -120,6 +181,7 @@ export interface ToolCallResult {
  * @param args        Parsed JSON arguments from the model.
  * @param supabase    Service-role Supabase client for DB access.
  * @param userId      Authenticated user's UUID (used for RLS fallthrough on service role).
+ * @param options     Optional scope (e.g. knowledge articles/categories for search_knowledge_base).
  * @returns           A ToolCallResult ready to append to the messages array as role='tool'.
  */
 export async function executeBuiltInTool(
@@ -128,6 +190,7 @@ export async function executeBuiltInTool(
   args: Record<string, unknown>,
   supabase: SupabaseClient,
   _userId: string,
+  options?: BuiltInToolOptions,
 ): Promise<ToolCallResult> {
   let result: unknown;
 
@@ -193,21 +256,31 @@ export async function executeBuiltInTool(
         const safe = raw.replace(/%/g, '').replace(/,/g, ' ');
         const pattern = `%${safe}%`;
 
-        const { data: entryRows, error: entErr } = await supabase
+        const allowedIds = await resolveAllowedKnowledgeEntryIds(supabase, options?.knowledgeSearchScope);
+        if (allowedIds && allowedIds.length === 0) {
+          result = [];
+          break;
+        }
+
+        let entQb = supabase
           .from('knowledge_entries')
           .select('id, title, content, summary, created_at')
           .or(`title.ilike.${pattern},content.ilike.${pattern},summary.ilike.${pattern}`)
           .limit(limit);
+        if (allowedIds) entQb = entQb.in('id', allowedIds);
 
+        const { data: entryRows, error: entErr } = await entQb;
         if (entErr) throw entErr;
 
-        const { data: extractRows, error: exErr } = await supabase
+        let exQb = supabase
           .from('document_extracts')
           .select('extracted_text, word_count, file_name, parse_status, knowledge_entry_id, knowledge_entries(id, title)')
           .eq('parse_status', 'done')
           .ilike('extracted_text', pattern)
           .limit(limit);
+        if (allowedIds) exQb = exQb.in('knowledge_entry_id', allowedIds);
 
+        const { data: extractRows, error: exErr } = await exQb;
         if (exErr) throw exErr;
 
         const fromEntries = (entryRows ?? []).map((r) => ({

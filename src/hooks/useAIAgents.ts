@@ -53,6 +53,10 @@ export interface AgentMetadata {
   avatar?: string;
   is_public?: boolean;
   tools?: Record<string, boolean>;
+  /** When Knowledge Base tool is on: limit search to these knowledge entry UUIDs (optional). */
+  knowledge_entry_ids?: string[];
+  /** When Knowledge Base tool is on: limit search to entries in these category UUIDs (optional). */
+  knowledge_category_ids?: string[];
 }
 
 export interface AgentFormData {

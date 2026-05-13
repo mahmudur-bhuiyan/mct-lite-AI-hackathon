@@ -363,6 +363,13 @@ export default function AgentDetail() {
           )}
         </div>
       </div>
+      <CustomizeAgentDialog
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        agentId={selectedAgent.id}
+        agentName={selectedAgent.name}
+        baseSystemPrompt={selectedAgent.system_prompt ?? ""}
+      />
     </div>
   );
 }

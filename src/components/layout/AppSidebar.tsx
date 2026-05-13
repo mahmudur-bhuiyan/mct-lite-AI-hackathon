@@ -71,13 +71,6 @@ const navigationItems: SidebarItem[] = [
     module: "loans",
   },
   {
-    title: "HubSpot pipeline",
-    href: "/pipeline/hubspot",
-    icon: LineChart,
-    permission: permissionKey("loans", "read"),
-    module: "pipeline_views",
-  },
-  {
     title: "Borrowers",
     href: "/borrowers",
     icon: UserPlus,

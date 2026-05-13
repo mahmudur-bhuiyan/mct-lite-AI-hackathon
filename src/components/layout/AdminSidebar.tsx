@@ -87,6 +87,7 @@ const sidebarGroups: SidebarGroup[] = [
       { title: "Integrations", href: "/admin/integrations", icon: Zap },
       { title: "Activity Logs", href: "/admin/logs", icon: Activity },
       { title: "Knowledge Categories", href: "/admin/knowledge-categories", icon: BookOpen },
+      { title: "Document extracts", href: "/admin/knowledge-documents", icon: ScrollText },
     ],
   },
 ];

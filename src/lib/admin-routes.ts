@@ -24,6 +24,7 @@ export const ADMIN_PATH_PERMISSION: Record<string, string> = {
   "/admin/meeting-analytics": permissionKey("admin", "access"),
   "/admin/knowledge-categories": permissionKey("knowledge", "read"),
   "/admin/knowledge-analytics": permissionKey("knowledge", "read"),
+  "/admin/knowledge-documents": permissionKey("knowledge", "read"),
   "/admin/loan-products": permissionKey("loan_products", "read"),
   "/admin/modules": permissionKey("admin", "access"),
   "/admin/data-feeds": permissionKey("settings", "manage"),

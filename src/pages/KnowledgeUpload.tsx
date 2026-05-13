@@ -317,11 +317,6 @@ export default function KnowledgeUpload() {
       toast.error("You must be logged in to upload files");
       return;
     }
-    if (!formData.category) {
-      toast.error("Category is required before upload");
-      return;
-    }
-
     console.log("🚀 Starting upload process for", files.length, "file(s)");
     console.log("👤 User ID:", user.id);
 
@@ -420,7 +415,7 @@ export default function KnowledgeUpload() {
               <div className="flex-1">
                 <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">File Upload Requirements</h4>
                 <div className="mt-1 text-sm text-blue-700 dark:text-blue-300">
-                  <p><strong>Supported formats:</strong> PDF, DOCX, XLSX, TXT, MD, JSON</p>
+                  <p><strong>Supported formats:</strong> PDF, DOCX, XLSX, PPTX, TXT, MD, JSON</p>
                   <p><strong>Maximum file size:</strong> 10MB per file</p>
                   <p className="text-xs mt-1 text-blue-600 dark:text-blue-400">Files are stored securely and only accessible by you</p>
                 </div>
@@ -486,7 +481,7 @@ export default function KnowledgeUpload() {
 
             <div className="space-y-2">
               <Label htmlFor="category">
-                Category <span className="text-destructive">*</span>
+                Category <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <SearchableSelect
                 value={formData.category}
@@ -583,7 +578,7 @@ export default function KnowledgeUpload() {
 
           {/* Upload Button */}
           <div className="flex gap-2 pt-4">
-            <Button onClick={handleUpload} disabled={files.length === 0 || uploading || !formData.category}>
+            <Button onClick={handleUpload} disabled={files.length === 0 || uploading}>
               {uploading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

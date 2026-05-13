@@ -66,6 +66,7 @@ import FeedbackManagement from "./pages/admin/FeedbackManagement";
 import ModuleManagement from "./pages/admin/ModuleManagement";
 import KnowledgeCategories from "./pages/admin/KnowledgeCategories";
 import KnowledgeAnalytics from "./pages/admin/KnowledgeAnalytics";
+import DocumentExtracts from "./pages/admin/DocumentExtracts";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Notifications from "./pages/Notifications";
@@ -333,6 +334,7 @@ const App = () => (
                   <Route path="/admin/checklist" element={<DeploymentChecklist />} />
                   <Route path="/admin/knowledge-categories" element={<KnowledgeCategories />} />
                   <Route path="/admin/knowledge-analytics" element={<KnowledgeAnalytics />} />
+                  <Route path="/admin/knowledge-documents" element={<DocumentExtracts />} />
                   <Route path="/admin/modules" element={<ModuleManagement />} />
                   {/* Redirect removed Lite pages to admin home */}
                   <Route path="/admin/loan-programs" element={<Navigate to="/admin" replace />} />

@@ -20,11 +20,11 @@ import {
   logAgentRun,
   routedChatCompletion,
   type ChatMessage,
-  type ToolDefinition,
 } from '../_shared/ai-utils.ts';
 import {
   executeBuiltInTool,
-  resolveAgentTools,
+  resolveAgentToolsFromMetadata,
+  type KnowledgeSearchScope,
 } from '../_shared/tool-executor.ts';
 import { isAgentAllowedForUserEdge, loadRoleProfileForEdge } from '../_shared/agent-access.ts';
 
@@ -250,13 +250,25 @@ serve(async (req) => {
       typeof providerConfig.model === 'string' ? providerConfig.model : null;
     const resolvedModel = normalizeModelForProvider(configuredModel, resolvedProvider);
 
-    // Resolve tools for this agent (L3)
+    // Resolve tools for this agent (L3): legacy tools_config array OR metadata.tools toggles
     const metadata = (agent.metadata as Record<string, unknown> | null) ?? {};
-    const metadataToolsConfig = metadata.tools_config;
-    const rawToolsConfig = Array.isArray(metadataToolsConfig) ? metadataToolsConfig as unknown[] : [];
-    const agentTools: ToolDefinition[] = rawToolsConfig.length > 0
-      ? resolveAgentTools(rawToolsConfig)
-      : [];
+    const agentTools = resolveAgentToolsFromMetadata(metadata);
+
+    const knowledgeSearchScope: KnowledgeSearchScope | undefined = (() => {
+      const entryIds = Array.isArray(metadata.knowledge_entry_ids)
+        ? (metadata.knowledge_entry_ids as unknown[]).filter((x): x is string => typeof x === 'string' && x.length > 0)
+        : [];
+      const categoryIds = Array.isArray(metadata.knowledge_category_ids)
+        ? (metadata.knowledge_category_ids as unknown[]).filter((x): x is string => typeof x === 'string' && x.length > 0)
+        : [];
+      if (entryIds.length === 0 && categoryIds.length === 0) return undefined;
+      return { entryIds, categoryIds };
+    })();
+
+    const builtInToolOptions =
+      knowledgeSearchScope && (knowledgeSearchScope.entryIds.length > 0 || knowledgeSearchScope.categoryIds.length > 0)
+        ? { knowledgeSearchScope }
+        : undefined;
 
     const t0 = Date.now();
     let outputText: string;
@@ -299,7 +311,7 @@ serve(async (req) => {
           choice.message.tool_calls.map((tc) => {
             let args: Record<string, unknown> = {};
             try { args = JSON.parse(tc.function.arguments); } catch { /* use empty */ }
-            return executeBuiltInTool(tc.id, tc.function.name, args, service, userId);
+            return executeBuiltInTool(tc.id, tc.function.name, args, service, userId, builtInToolOptions);
           }),
         );
 

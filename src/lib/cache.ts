@@ -30,6 +30,8 @@ export const queryKeys = {
     all: ["knowledge"] as const,
     entries: (filters?: Record<string, any>) => ["knowledge", "entries", filters] as const,
     entry: (id: string) => ["knowledge", "entry", id] as const,
+    documentExtract: (knowledgeEntryId: string) =>
+      ["knowledge", "document-extract", knowledgeEntryId] as const,
     categories: ["knowledge", "categories"] as const,
     category: (id: string) => ["knowledge", "category", id] as const,
     search: (query: string) => ["knowledge", "search", query] as const,

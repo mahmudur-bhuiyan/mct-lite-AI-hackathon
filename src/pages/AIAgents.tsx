@@ -15,6 +15,7 @@ import {
   AgentProviderConfig,
   AgentMetadata,
 } from "@/hooks/useAIAgents";
+import { useKnowledgeEntries, useKnowledgeCategories } from "@/hooks/useKnowledge";
 import {
   type LlmProvider,
   LLM_PROVIDER_OPTIONS,
@@ -30,7 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
@@ -95,6 +96,9 @@ interface ExtendedFormData extends AgentFormData {
   temperature: number;
   max_tokens: number;
   tools: Record<string, boolean>;
+  /** When Knowledge Base tool is enabled: optional entry IDs to scope search. */
+  knowledge_entry_ids: string[];
+  knowledge_category_ids: string[];
   /** Comma-separated roles for custom agents; empty = all authenticated users. */
   required_role_input: string;
 }
@@ -114,6 +118,8 @@ const DEFAULT_FORM: ExtendedFormData = {
   temperature: 0.7,
   max_tokens: 4096,
   tools: Object.fromEntries(TOOL_IDS.map((id) => [id, false])),
+  knowledge_entry_ids: [],
+  knowledge_category_ids: [],
   required_role_input: "",
 };
 
@@ -157,6 +163,10 @@ export default function AIAgents() {
   const TOTAL_STEPS = 3;
 
   const [formData, setFormData] = useState<ExtendedFormData>(DEFAULT_FORM);
+  const [knowledgeScopeFilter, setKnowledgeScopeFilter] = useState("");
+
+  const { data: scopeEntries = [] } = useKnowledgeEntries({ status: "published" });
+  const { data: scopeCategories = [] } = useKnowledgeCategories();
 
   const patch = (partial: Partial<ExtendedFormData>) =>
     setFormData((prev) => ({ ...prev, ...partial }));
@@ -166,6 +176,21 @@ export default function AIAgents() {
     e.preventDefault();
 
     if (!formData.name.trim() || !formData.system_prompt.trim()) return;
+
+    const meta: AgentMetadata = {
+      avatar: formData.avatar,
+      is_public: formData.is_public,
+      tools: formData.tools,
+    };
+    if (formData.tools.knowledge_base) {
+      meta.knowledge_entry_ids =
+        formData.knowledge_entry_ids.length > 0 ? formData.knowledge_entry_ids : [];
+      meta.knowledge_category_ids =
+        formData.knowledge_category_ids.length > 0 ? formData.knowledge_category_ids : [];
+    } else {
+      meta.knowledge_entry_ids = [];
+      meta.knowledge_category_ids = [];
+    }
 
     const payload: AgentFormData = {
       name: formData.name,
@@ -181,11 +206,7 @@ export default function AIAgents() {
         temperature: formData.temperature,
         max_tokens: formData.max_tokens,
       },
-      metadata: {
-        avatar: formData.avatar,
-        is_public: formData.is_public,
-        tools: formData.tools,
-      },
+      metadata: meta,
       required_role: formData.required_role_input.trim() || null,
     };
 
@@ -225,6 +246,10 @@ export default function AIAgents() {
       tools: meta.tools
         ? { ...Object.fromEntries(TOOL_IDS.map((id) => [id, false])), ...meta.tools }
         : Object.fromEntries(TOOL_IDS.map((id) => [id, false])),
+      knowledge_entry_ids: Array.isArray(meta.knowledge_entry_ids) ? [...meta.knowledge_entry_ids] : [],
+      knowledge_category_ids: Array.isArray(meta.knowledge_category_ids)
+        ? [...meta.knowledge_category_ids]
+        : [],
       required_role_input: agent.required_role?.trim() ?? "",
     });
     setCurrentStep(1);
@@ -293,6 +318,7 @@ export default function AIAgents() {
     setFormData(DEFAULT_FORM);
     setEditingAgent(null);
     setCurrentStep(1);
+    setKnowledgeScopeFilter("");
   };
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -729,26 +755,104 @@ export default function AIAgents() {
                           description: "Allow the agent to write and execute code snippets",
                         },
                       ].map(({ id, icon: Icon, label, description }) => (
-                        <div
-                          key={id}
-                          className="flex items-center justify-between rounded-lg border p-4"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
-                              <Icon className="h-4 w-4 text-muted-foreground" />
+                        <div key={id} className="space-y-2">
+                          <div className="flex items-center justify-between rounded-lg border p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
+                                <Icon className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                              <div>
+                                <Label className="cursor-pointer">{label}</Label>
+                                <p className="text-sm text-muted-foreground">{description}</p>
+                              </div>
                             </div>
-                            <div>
-                              <Label className="cursor-pointer">{label}</Label>
-                              <p className="text-sm text-muted-foreground">{description}</p>
-                            </div>
+                            <Switch
+                              checked={formData.tools[id] ?? false}
+                              onCheckedChange={(v) =>
+                                patch({ tools: { ...formData.tools, [id]: v } })
+                              }
+                              disabled={isProcessing}
+                            />
                           </div>
-                          <Switch
-                            checked={formData.tools[id] ?? false}
-                            onCheckedChange={(v) =>
-                              patch({ tools: { ...formData.tools, [id]: v } })
-                            }
-                            disabled={isProcessing}
-                          />
+
+                          {id === "knowledge_base" && formData.tools.knowledge_base && (
+                            <div className="space-y-4 rounded-lg border border-dashed bg-muted/30 p-4">
+                              <p className="text-sm text-muted-foreground">
+                                Optional: restrict the knowledge search tool to specific articles and/or
+                                categories. Leave none selected to search all published knowledge.
+                              </p>
+                              <div className="space-y-2">
+                                <Label htmlFor="knowledge-scope-filter">Articles</Label>
+                                <Input
+                                  id="knowledge-scope-filter"
+                                  placeholder="Filter by title…"
+                                  value={knowledgeScopeFilter}
+                                  onChange={(e) => setKnowledgeScopeFilter(e.target.value)}
+                                  disabled={isProcessing}
+                                />
+                                <ScrollArea className="h-40 rounded-md border bg-background p-2">
+                                  <div className="space-y-1 pr-3">
+                              {scopeEntries
+                                      .filter((e) =>
+                                        knowledgeScopeFilter.trim()
+                                          ? e.title
+                                              .toLowerCase()
+                                              .includes(knowledgeScopeFilter.trim().toLowerCase())
+                                          : true,
+                                      )
+                                      .slice(0, 100)
+                                      .map((e) => (
+                                        <label
+                                          key={e.id}
+                                          className="flex cursor-pointer items-center gap-2 py-1 text-sm"
+                                        >
+                                          <Checkbox
+                                            checked={formData.knowledge_entry_ids.includes(e.id)}
+                                            onCheckedChange={(c) => {
+                                              const on = c === true;
+                                              patch({
+                                                knowledge_entry_ids: on
+                                                  ? [...formData.knowledge_entry_ids, e.id]
+                                                  : formData.knowledge_entry_ids.filter((x) => x !== e.id),
+                                              });
+                                            }}
+                                            disabled={isProcessing}
+                                          />
+                                          <span className="truncate">{e.title}</span>
+                                        </label>
+                                      ))}
+                                  </div>
+                                </ScrollArea>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Categories</Label>
+                                <ScrollArea className="h-36 rounded-md border bg-background p-2">
+                                  <div className="space-y-1 pr-3">
+                                    {scopeCategories.map((c) => (
+                                      <label
+                                        key={c.id}
+                                        className="flex cursor-pointer items-center gap-2 py-1 text-sm"
+                                      >
+                                        <Checkbox
+                                          checked={formData.knowledge_category_ids.includes(c.id)}
+                                          onCheckedChange={(ck) => {
+                                            const on = ck === true;
+                                            patch({
+                                              knowledge_category_ids: on
+                                                ? [...formData.knowledge_category_ids, c.id]
+                                                : formData.knowledge_category_ids.filter((x) => x !== c.id),
+                                            });
+                                          }}
+                                          disabled={isProcessing}
+                                        />
+                                        <span>{c.name}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                </ScrollArea>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

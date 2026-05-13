@@ -234,7 +234,7 @@ export default function KnowledgeUpload() {
       // Use extracted content if available, otherwise create a placeholder that indicates file viewing
       const contentToStore = extractedContent 
         ? extractedContent 
-        : `# ${fileName}\n\nThis file has been uploaded and is available for download and viewing below.\n\n**File Type:** ${fileName.split('.').pop()?.toUpperCase()}\n**Uploaded:** ${new Date().toLocaleDateString()}\n\n[View File](${fileUrl})`;
+        : `# ${fileName}\n\nThis file has been uploaded. Open it from this page using **Download** or **View file** (works with private storage).\n\n**File Type:** ${fileName.split('.').pop()?.toUpperCase()}\n**Uploaded:** ${new Date().toLocaleDateString()}`;
       
       console.log("💾 Content to store:", contentToStore.length, "characters");
 

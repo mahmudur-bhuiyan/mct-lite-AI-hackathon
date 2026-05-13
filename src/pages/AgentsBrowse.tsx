@@ -225,14 +225,22 @@ export default function AgentsBrowse() {
                     <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 mt-2 flex-1">
                       {agent.description?.trim() || "No description provided."}
                     </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-4 w-full transition-colors"
-                      onClick={() => navigate(`/agents/${agent.slug}`)}
-                    >
-                      Learn More
-                    </Button>
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => navigate(`/agents/${agent.id}/chat`)}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-1.5" /> Chat
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/agents/${agent.slug}`)}
+                      >
+                        Customize
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}

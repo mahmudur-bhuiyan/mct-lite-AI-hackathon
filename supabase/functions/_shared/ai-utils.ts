@@ -533,29 +533,102 @@ async function perplexityChatCompletion(
 }
 
 /**
+ * Calls the Lovable AI Gateway (OpenAI-compatible). Uses LOVABLE_API_KEY which
+ * is auto-provisioned in Supabase Edge env. Acts as a zero-config seed provider
+ * so agents work out-of-the-box until an admin configures OpenAI/Anthropic/Google.
+ */
+async function lovableChatCompletion(
+  apiKey: string,
+  messages: ChatMessage[],
+  options: ChatCompletionOptions & { provider_model?: string },
+): Promise<RoutedCompletionResult> {
+  const model = options.provider_model ?? options.model ?? 'google/gemini-3-flash-preview';
+  const temperature = options.temperature ?? 0.7;
+  const max_tokens = options.max_tokens;
+
+  const body: Record<string, unknown> = { model, messages, temperature };
+  if (typeof max_tokens === 'number') body.max_tokens = max_tokens;
+
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    if (response.status === 429) {
+      throw new Error('Lovable AI rate limit reached. Please retry shortly or add credits in Settings → Workspace → Usage.');
+    }
+    if (response.status === 402) {
+      throw new Error('Lovable AI credits exhausted. Add credits in Settings → Workspace → Usage, or configure your own OpenAI/Anthropic/Google key in Admin → Integrations.');
+    }
+    throw new Error(`Lovable AI Gateway error (${response.status}): ${err}`);
+  }
+
+  const raw = await response.json() as Record<string, unknown>;
+  const choices = (raw.choices as Array<{ message?: { content?: string } }> | undefined) ?? [];
+  const output = choices[0]?.message?.content ?? '';
+  const usage = raw.usage as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined;
+
+  return {
+    output,
+    usage: usage
+      ? {
+          prompt_tokens: usage.prompt_tokens ?? 0,
+          completion_tokens: usage.completion_tokens ?? 0,
+          total_tokens: usage.total_tokens ?? ((usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0)),
+        }
+      : null,
+    provider: 'lovable',
+    model,
+    raw,
+  };
+}
+
+/**
  * Multi-provider chat completion dispatcher.
  *
- * Reads `provider_config.provider` (defaults to 'openai') and routes to the
- * appropriate API. Returns a normalized RoutedCompletionResult.
- *
- * Usage in agents:
- *   const result = await routedChatCompletion(messages, providerConfig);
- *   const output = result.output;   // assistant text
- *   const usage  = result.usage;    // token metrics
+ * Reads `provider_config.provider` (defaults to 'lovable'). If the configured
+ * provider has no API key, automatically falls back to the Lovable AI Gateway
+ * so agents stay usable until an admin connects their own LLM provider.
  */
 export async function routedChatCompletion(
   messages: ChatMessage[],
   providerConfig: Record<string, unknown>,
 ): Promise<RoutedCompletionResult> {
-  const provider = (providerConfig.provider as LLMProvider | undefined) ?? 'openai';
+  const requestedProvider = (providerConfig.provider as LLMProvider | undefined) ?? 'lovable';
   const model = (providerConfig.model as string | undefined) ?? undefined;
   const temperature = typeof providerConfig.temperature === 'number' ? providerConfig.temperature : undefined;
   const max_tokens = typeof providerConfig.max_tokens === 'number' ? providerConfig.max_tokens : undefined;
   const provider_model = (providerConfig.provider_model as string | undefined) ?? model;
 
-  const apiKey = await getProviderApiKey(provider);
+  let provider = requestedProvider;
+  let apiKey = await getProviderApiKey(provider);
+
+  // Seed/fallback: if the configured provider has no key, route via Lovable AI Gateway.
+  if (!apiKey && provider !== 'lovable') {
+    const lovableKey = await getProviderApiKey('lovable');
+    if (lovableKey) {
+      console.log(`routedChatCompletion: no key for '${provider}', falling back to Lovable AI Gateway.`);
+      provider = 'lovable';
+      apiKey = lovableKey;
+    }
+  }
+
   if (!apiKey) {
-    throw new Error(`API key for provider '${provider}' is not configured. Set it in Admin → Integrations.`);
+    throw new Error(`API key for provider '${requestedProvider}' is not configured. Set it in Admin → Integrations, or enable Lovable AI.`);
+  }
+
+  if (provider === 'lovable') {
+    // When falling back, use a sensible Lovable Gateway model regardless of the originally requested provider's model name.
+    const lovableModel = provider === requestedProvider
+      ? (provider_model ?? model)
+      : 'google/gemini-3-flash-preview';
+    return lovableChatCompletion(apiKey, messages, { model: lovableModel, temperature, max_tokens, provider_model: lovableModel });
   }
 
   if (provider === 'anthropic') {

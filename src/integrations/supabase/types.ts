@@ -570,10 +570,17 @@ export type Database = {
       }
       loans: {
         Row: {
+          api_payload: Json | null
+          appraised_value: number | null
           borrower_id: string | null
+          branch_id: string | null
           created_at: string
           created_by: string | null
+          credit_score: number | null
+          data_source: string | null
+          dti: number | null
           estimated_close_date: string | null
+          external_id: string | null
           id: string
           interest_rate: number | null
           loan_amount: number | null
@@ -581,20 +588,36 @@ export type Database = {
           loan_officer_id: string | null
           loan_purpose: string | null
           loan_type: string | null
+          lock_date: string | null
+          lock_expiration_date: string | null
+          ltv: number | null
           notes: string | null
+          occupancy_type: string | null
+          product_id: string | null
+          program_id: string | null
           property_address: string | null
           property_city: string | null
+          property_postal_code: string | null
           property_state: string | null
           property_zip: string | null
+          purpose: string | null
           stage: string | null
           status: string
+          underwriter_id: string | null
           updated_at: string
         }
         Insert: {
+          api_payload?: Json | null
+          appraised_value?: number | null
           borrower_id?: string | null
+          branch_id?: string | null
           created_at?: string
           created_by?: string | null
+          credit_score?: number | null
+          data_source?: string | null
+          dti?: number | null
           estimated_close_date?: string | null
+          external_id?: string | null
           id?: string
           interest_rate?: number | null
           loan_amount?: number | null
@@ -602,20 +625,36 @@ export type Database = {
           loan_officer_id?: string | null
           loan_purpose?: string | null
           loan_type?: string | null
+          lock_date?: string | null
+          lock_expiration_date?: string | null
+          ltv?: number | null
           notes?: string | null
+          occupancy_type?: string | null
+          product_id?: string | null
+          program_id?: string | null
           property_address?: string | null
           property_city?: string | null
+          property_postal_code?: string | null
           property_state?: string | null
           property_zip?: string | null
+          purpose?: string | null
           stage?: string | null
           status?: string
+          underwriter_id?: string | null
           updated_at?: string
         }
         Update: {
+          api_payload?: Json | null
+          appraised_value?: number | null
           borrower_id?: string | null
+          branch_id?: string | null
           created_at?: string
           created_by?: string | null
+          credit_score?: number | null
+          data_source?: string | null
+          dti?: number | null
           estimated_close_date?: string | null
+          external_id?: string | null
           id?: string
           interest_rate?: number | null
           loan_amount?: number | null
@@ -623,13 +662,22 @@ export type Database = {
           loan_officer_id?: string | null
           loan_purpose?: string | null
           loan_type?: string | null
+          lock_date?: string | null
+          lock_expiration_date?: string | null
+          ltv?: number | null
           notes?: string | null
+          occupancy_type?: string | null
+          product_id?: string | null
+          program_id?: string | null
           property_address?: string | null
           property_city?: string | null
+          property_postal_code?: string | null
           property_state?: string | null
           property_zip?: string | null
+          purpose?: string | null
           stage?: string | null
           status?: string
+          underwriter_id?: string | null
           updated_at?: string
         }
         Relationships: [

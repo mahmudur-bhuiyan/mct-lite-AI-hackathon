@@ -43,7 +43,7 @@ export interface AgentRun {
 }
 
 export interface AgentProviderConfig {
-  provider?: "openai" | "google" | "anthropic" | "perplexity";
+  provider?: "lovable" | "openai" | "google" | "anthropic" | "perplexity";
   model?: string;
   temperature?: number;
   max_tokens?: number;

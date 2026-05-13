@@ -245,10 +245,6 @@ export type Database = {
           email: string | null
           external_id: string | null
           first_name: string
-          hmda_ethnicity?: string | null
-          hmda_income?: number | null
-          hmda_race?: string | null
-          hmda_sex?: string | null
           id: string
           last_name: string
           notes: string | null
@@ -272,10 +268,6 @@ export type Database = {
           email?: string | null
           external_id?: string | null
           first_name: string
-          hmda_ethnicity?: string | null
-          hmda_income?: number | null
-          hmda_race?: string | null
-          hmda_sex?: string | null
           id?: string
           last_name: string
           notes?: string | null

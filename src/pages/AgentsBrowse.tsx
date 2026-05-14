@@ -112,6 +112,11 @@ export default function AgentsBrowse() {
 
   const quickAccessAgents = useMemo(() => pickQuickAccessAgents(enabledAgents), [enabledAgents]);
 
+  const quickAccessIdSet = useMemo(
+    () => new Set(quickAccessAgents.map((a) => a.id)),
+    [quickAccessAgents],
+  );
+
   const groupedAgents = useMemo(() => {
     const groups = new Map<string, AIAgent[]>();
     for (const agent of enabledAgents) {
@@ -121,6 +126,13 @@ export default function AgentsBrowse() {
     }
     return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
   }, [enabledAgents]);
+
+  const groupedAgentsBelowQuick = useMemo(() => {
+    if (quickAccessIdSet.size === 0) return groupedAgents;
+    return groupedAgents
+      .map(([category, agents]) => [category, agents.filter((a) => !quickAccessIdSet.has(a.id))] as const)
+      .filter(([, agents]) => agents.length > 0);
+  }, [groupedAgents, quickAccessIdSet]);
 
   return (
     <div className="space-y-12 p-6">
@@ -219,7 +231,7 @@ export default function AgentsBrowse() {
             </section>
           ) : null}
 
-          {groupedAgents.map(([category, agents], sectionIndex) => {
+          {groupedAgentsBelowQuick.map(([category, agents], sectionIndex) => {
             const sectionTheme = buildSectionMeta(category, agents);
             const palette = SECTION_PALETTES[sectionIndex % SECTION_PALETTES.length];
             const TeamIcon = sectionTheme.sectionIcon;

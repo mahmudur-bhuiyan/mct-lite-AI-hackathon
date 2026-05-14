@@ -482,19 +482,21 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
     );
   }
 
+  const agentsCatalogHref = isAdminPath ? "/admin/agents" : "/agents";
+
   if (!agent) {
     return (
       <div className="space-y-4 p-6">
         <p className="text-muted-foreground">Agent not found.</p>
         <Button variant="outline" asChild>
-          <Link to="/admin/agents">Back to Agents</Link>
+          <Link to={agentsCatalogHref}>Back to Agents</Link>
         </Button>
       </div>
     );
   }
 
   if (!isAgentAllowedForUser(agent.slug, profile, agent.required_role ?? null)) {
-    const back = location.pathname.startsWith("/admin") ? "/admin/agents" : "/agents";
+    const back = agentsCatalogHref;
     return (
       <div className="space-y-4 p-6">
         <p className="text-muted-foreground">You do not have access to this agent.</p>
@@ -505,7 +507,12 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
     );
   }
 
-  const backHref = window.location.pathname.startsWith("/admin") ? "/admin/agents" : "/ai/agents";
+  const backHref = agentsCatalogHref;
+  const showAgentConfigGear = profile?.role !== "user";
+  const agentConfigHref =
+    profile?.role === "admin" || profile?.role === "moderator"
+      ? `/admin/agents?edit=${agent.id}`
+      : `/agents/${agent.slug}`;
 
   const displayModel =
     (() => {
@@ -552,17 +559,19 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
                   <p className="font-medium text-sm truncate">{agent.name}</p>
                   <p className="text-xs text-muted-foreground">{displayModel}</p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 rounded-full"
-                  aria-label="Edit agent config"
-                  asChild
-                >
-                  <Link to={`${backHref}?edit=${agent.id}`}>
-                    <Settings className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                  </Link>
-                </Button>
+                {showAgentConfigGear ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 rounded-full"
+                    aria-label="Edit agent config"
+                    asChild
+                  >
+                    <Link to={agentConfigHref}>
+                      <Settings className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                    </Link>
+                  </Button>
+                ) : null}
               </div>
               {agent.description && (
                 <div className="mt-2 max-h-28 overflow-y-auto">

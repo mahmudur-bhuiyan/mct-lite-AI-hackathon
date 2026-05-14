@@ -148,23 +148,17 @@ export function AppSidebar() {
     "/loans",
     "/borrowers",
     "/tasks",
-    "/action-items",
     "/knowledge",
-    "/notifications",
     "/agents",
-    "/ai",
   ]);
-  /** App role `user` (support/processor): ops-focused nav + knowledge + AI (same agent catalog as officers, filtered by role). */
+  /** App role `user` (support/processor): tasks + knowledge + agents; no AI Chat, action items, or notifications in nav. */
   const isUserRoleLiteNav =
     !isAdmin && !isLoanOfficerLiteNav && profile?.role === "user";
   const userRoleNavAllow = new Set<string>([
     "/dashboard",
     "/tasks",
-    "/action-items",
     "/knowledge",
-    "/notifications",
     "/agents",
-    "/ai",
   ]);
 
   const agentEnabledMap: Record<string, boolean> = {

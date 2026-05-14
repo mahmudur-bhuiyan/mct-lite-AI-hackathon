@@ -58,6 +58,7 @@ export default function AgentDetail() {
   const [customizeOpen, setCustomizeOpen] = useState(false);
 
   const selectedAgent = dbAgents.find((a) => a.slug === slug && a.is_enabled);
+  const showCustomize = profile?.role !== "user";
 
   const allowed =
     selectedAgent &&
@@ -171,10 +172,12 @@ export default function AgentDetail() {
                   Go to {whereToFind.label}
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={() => setCustomizeOpen(true)}>
-                <Settings className="h-3.5 w-3.5 mr-2" />
-                Customize
-              </Button>
+              {showCustomize ? (
+                <Button variant="outline" size="sm" onClick={() => setCustomizeOpen(true)}>
+                  <Settings className="h-3.5 w-3.5 mr-2" />
+                  Customize
+                </Button>
+              ) : null}
             </div>
           </div>
 
@@ -363,13 +366,15 @@ export default function AgentDetail() {
           )}
         </div>
       </div>
-      <CustomizeAgentDialog
-        open={customizeOpen}
-        onOpenChange={setCustomizeOpen}
-        agentId={selectedAgent.id}
-        agentName={selectedAgent.name}
-        baseSystemPrompt={selectedAgent.system_prompt ?? ""}
-      />
+      {showCustomize ? (
+        <CustomizeAgentDialog
+          open={customizeOpen}
+          onOpenChange={setCustomizeOpen}
+          agentId={selectedAgent.id}
+          agentName={selectedAgent.name}
+          baseSystemPrompt={selectedAgent.system_prompt ?? ""}
+        />
+      ) : null}
     </div>
   );
 }

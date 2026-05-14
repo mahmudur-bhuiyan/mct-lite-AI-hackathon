@@ -28,6 +28,7 @@ import {
   PanelRight,
   Inbox,
   LineChart,
+  MessageSquare,
 } from "lucide-react";
 import { useModuleSettings, isModuleEnabled } from "@/hooks/useModuleSettings";
 import {
@@ -105,6 +106,14 @@ const navigationItems: SidebarItem[] = [
 
 const aiToolsItems: SidebarItem[] = [
   {
+    title: "AI Chat",
+    href: "/ai",
+    icon: MessageSquare,
+    isAI: true,
+    featureFlag: "enableAIChat",
+    permission: permissionKey("ai_chat", "read"),
+  },
+  {
     title: "AI Agents",
     href: "/agents",
     icon: Bot,
@@ -143,8 +152,9 @@ export function AppSidebar() {
     "/knowledge",
     "/notifications",
     "/agents",
+    "/ai",
   ]);
-  /** App role `user` (support/processor): minimal nav — no pipeline, borrowers, or agent catalog. */
+  /** App role `user` (support/processor): ops-focused nav + knowledge + AI (same agent catalog as officers, filtered by role). */
   const isUserRoleLiteNav =
     !isAdmin && !isLoanOfficerLiteNav && profile?.role === "user";
   const userRoleNavAllow = new Set<string>([
@@ -153,6 +163,8 @@ export function AppSidebar() {
     "/action-items",
     "/knowledge",
     "/notifications",
+    "/agents",
+    "/ai",
   ]);
 
   const agentEnabledMap: Record<string, boolean> = {

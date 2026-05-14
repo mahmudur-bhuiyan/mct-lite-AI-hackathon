@@ -4,6 +4,7 @@ import { Sparkles, Bot, MessageSquare, BarChart3, ListTodo, Layers } from "lucid
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRoleFilteredAgents, type AIAgent, type AgentMetadata } from "@/hooks/useAIAgents";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SECTION_PALETTES = [
   { sectionBadgeBg: "bg-fuchsia-600", cardGradientFrom: "296 91% 38%", cardGradientTo: "330 81% 47%" }, // magenta
@@ -13,6 +14,8 @@ const SECTION_PALETTES = [
   { sectionBadgeBg: "bg-violet-600", cardGradientFrom: "258 90% 52%", cardGradientTo: "278 88% 57%" }, // violet
   { sectionBadgeBg: "bg-rose-600", cardGradientFrom: "340 82% 52%", cardGradientTo: "6 78% 56%" }, // rose-red
 ];
+
+const QUICK_ACCESS_COUNT = 4;
 
 function formatCategoryLabel(category: string | null) {
   if (!category) return "General";
@@ -25,6 +28,12 @@ function formatCategoryLabel(category: string | null) {
 function normalizeCategoryKey(category: string | null) {
   if (!category) return "general";
   return category.trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+function isCommunicationStyleAgent(agent: AIAgent): boolean {
+  const k = normalizeCategoryKey(agent.category);
+  const raw = (agent.category ?? "").toLowerCase();
+  return k === "communication" || raw.includes("chat") || raw.includes("communication");
 }
 
 function getAvatar(agent: AIAgent) {
@@ -58,7 +67,6 @@ function inferCategoryDescription(category: string, categoryLabel: string): stri
     `Designed to simplify ${lowerLabel} work with clear, actionable guidance`,
   ];
 
-  // Deterministically rotate template by category for consistent UX.
   let hash = 0;
   for (let i = 0; i < normalized.length; i += 1) {
     hash = (hash * 31 + normalized.charCodeAt(i)) % 2147483647;
@@ -77,14 +85,32 @@ function buildSectionMeta(category: string, agents: AIAgent[]) {
   };
 }
 
+function pickQuickAccessAgents(enabledAgents: AIAgent[]): AIAgent[] {
+  if (enabledAgents.length === 0) return [];
+  const preferred = enabledAgents.filter(isCommunicationStyleAgent);
+  const ordered =
+    preferred.length > 0
+      ? [
+          ...preferred,
+          ...enabledAgents.filter((a) => !preferred.includes(a)),
+        ]
+      : [...enabledAgents];
+  return ordered.slice(0, QUICK_ACCESS_COUNT);
+}
+
 export default function AgentsBrowse() {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const { data: visibleAgents = [], isLoading } = useRoleFilteredAgents();
+
+  const showCustomize = profile?.role !== "user";
 
   const enabledAgents = useMemo(
     () => [...visibleAgents].sort((a, b) => a.name.localeCompare(b.name)),
-    [visibleAgents]
+    [visibleAgents],
   );
+
+  const quickAccessAgents = useMemo(() => pickQuickAccessAgents(enabledAgents), [enabledAgents]);
 
   const groupedAgents = useMemo(() => {
     const groups = new Map<string, AIAgent[]>();
@@ -122,69 +148,76 @@ export default function AgentsBrowse() {
         </div>
       ) : (
         <>
-          <section className="space-y-4">
-            <h2 className="text-2xl font-bold text-foreground">Agent Teams</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {groupedAgents.map(([category, agents], sectionIndex) => {
-                const sectionTheme = buildSectionMeta(category, agents);
-                const palette = SECTION_PALETTES[sectionIndex % SECTION_PALETTES.length];
-                const TeamIcon = sectionTheme.sectionIcon;
-                const previewAgents = agents.slice(0, 4);
-                return (
-                  <div
-                    key={`team-${category}`}
-                    className="rounded-2xl border border-border bg-card p-6 shadow-md hover:shadow-xl transition-all duration-300"
-                    style={{
-                      borderBottomWidth: "4px",
-                      borderBottomColor: `hsl(${palette.cardGradientTo})`,
-                    }}
-                  >
-                    <div className="flex -space-x-3 mb-5">
+          {quickAccessAgents.length > 0 ? (
+            <section className="space-y-4">
+              <h2 className="text-2xl font-bold text-foreground">Chat team</h2>
+              <p className="text-sm text-muted-foreground -mt-2">
+                Start a conversation with your top assistants{showCustomize ? ", or open customize to tune prompts and knowledge scope" : ""}.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                {quickAccessAgents.map((agent, i) => {
+                  const palette = SECTION_PALETTES[i % SECTION_PALETTES.length];
+                  const catKey = normalizeCategoryKey(agent.category);
+                  const sectionTheme = buildSectionMeta(catKey, [agent]);
+                  return (
+                    <div
+                      key={agent.slug}
+                      className="group rounded-2xl border border-border overflow-hidden bg-card shadow-md hover:shadow-xl transition-all duration-300 flex flex-col"
+                    >
                       <div
-                        className="h-12 w-12 rounded-full flex items-center justify-center text-white ring-[3px] ring-background shadow-md"
+                        className="h-20 relative cursor-pointer"
                         style={{
                           background: `linear-gradient(135deg, hsl(${palette.cardGradientFrom}), hsl(${palette.cardGradientTo}))`,
-                          zIndex: 10,
                         }}
+                        onClick={() => navigate(`/agents/${agent.id}/chat`)}
+                        role="presentation"
                       >
-                        <TeamIcon className="h-5 w-5" />
-                      </div>
-                      {previewAgents.map((agent, avatarIndex) => (
+                        <Badge className="absolute top-2 right-2 border-0 bg-background/90 text-foreground text-xs">
+                          {sectionTheme.categoryLabel}
+                        </Badge>
                         <button
-                          key={`${category}-${agent.slug}`}
                           type="button"
-                          title={`Chat with ${agent.name}`}
-                          aria-label={`Chat with ${agent.name}`}
-                          onClick={() => navigate(`/agents/${agent.id}/chat`)}
-                          className="h-12 w-12 rounded-full flex items-center justify-center text-xl ring-[3px] ring-background shadow-md bg-card transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary"
-                          style={{
-                            background: `linear-gradient(135deg, hsl(${palette.cardGradientFrom} / 0.2), hsl(${palette.cardGradientTo} / 0.2))`,
-                            zIndex: 9 - avatarIndex,
+                          className="absolute -bottom-5 left-4 h-11 w-11 rounded-full bg-slate-900 border-[3px] border-background flex items-center justify-center text-lg shadow-lg hover:scale-105 transition-transform"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/agents/${agent.id}/chat`);
                           }}
+                          aria-label={`Chat with ${agent.name}`}
                         >
-                          {getAvatar(agent)}
+                          <span className="translate-y-[1px]">{getAvatar(agent)}</span>
                         </button>
-                      ))}
+                      </div>
+                      <div className="pt-7 px-4 pb-4 flex flex-col flex-1">
+                        <p className="text-base font-semibold text-foreground leading-tight">{agent.name}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1 flex-1">
+                          {agent.description?.trim() || "No description provided."}
+                        </p>
+                        <div className="mt-3 flex gap-2">
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => navigate(`/agents/${agent.id}/chat`)}
+                          >
+                            <MessageSquare className="h-4 w-4 mr-1.5" /> Chat
+                          </Button>
+                          {showCustomize ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0"
+                              onClick={() => navigate(`/agents/${agent.slug}`)}
+                            >
+                              Customize
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
-
-                    <h3 className="text-3xl font-bold text-foreground mb-1">{sectionTheme.sectionTitle}</h3>
-                    <p className="text-muted-foreground mb-5">{sectionTheme.tagline}</p>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const sectionEl = document.getElementById(`team-${category}`);
-                        sectionEl?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }}
-                    >
-                      Explore Team
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
 
           {groupedAgents.map(([category, agents], sectionIndex) => {
             const sectionTheme = buildSectionMeta(category, agents);
@@ -192,59 +225,61 @@ export default function AgentsBrowse() {
             const TeamIcon = sectionTheme.sectionIcon;
             return (
               <section key={category} id={`team-${category}`} className="space-y-4 scroll-mt-24">
-            <div className="flex items-start gap-3">
-              <div className={`h-11 w-11 shrink-0 rounded-xl ${palette.sectionBadgeBg} flex items-center justify-center shadow-sm`}>
-                <TeamIcon className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-foreground">{sectionTheme.sectionTitle}</h2>
-                <p className="text-muted-foreground text-sm">{sectionTheme.tagline}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {agents.map((agent) => (
-                <div
-                  key={agent.slug}
-                  className="group rounded-2xl border border-border overflow-hidden bg-card shadow-md hover:shadow-xl transition-all duration-300 flex flex-col"
-                >
-                  <div
-                    className="h-24 relative"
-                    style={{
-                      background: `linear-gradient(135deg, hsl(${palette.cardGradientFrom}), hsl(${palette.cardGradientTo}))`,
-                    }}
-                  >
-                    <Badge className="absolute top-3 right-3 border-0 bg-background/90 text-foreground">
-                      {sectionTheme.categoryLabel}
-                    </Badge>
-                    <div className="absolute -bottom-6 left-5 h-12 w-12 rounded-full bg-slate-900 border-[3px] border-background flex items-center justify-center text-xl shadow-lg">
-                      <span className="translate-y-[1px]">{getAvatar(agent)}</span>
-                    </div>
+                <div className="flex items-start gap-3">
+                  <div className={`h-11 w-11 shrink-0 rounded-xl ${palette.sectionBadgeBg} flex items-center justify-center shadow-sm`}>
+                    <TeamIcon className="h-5 w-5 text-white" />
                   </div>
-                  <div className="pt-8 px-5 pb-5 flex flex-col flex-1">
-                    <p className="text-lg font-semibold text-foreground leading-tight">{agent.name}</p>
-                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 mt-2 flex-1">
-                      {agent.description?.trim() || "No description provided."}
-                    </p>
-                    <div className="mt-4 flex gap-2">
-                      <Button
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => navigate(`/agents/${agent.id}/chat`)}
-                      >
-                        <MessageSquare className="h-4 w-4 mr-1.5" /> Chat
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/agents/${agent.slug}`)}
-                      >
-                        Customize
-                      </Button>
-                    </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-foreground">{sectionTheme.sectionTitle}</h2>
+                    <p className="text-muted-foreground text-sm">{sectionTheme.tagline}</p>
                   </div>
                 </div>
-              ))}
-            </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {agents.map((agent) => (
+                    <div
+                      key={agent.slug}
+                      className="group rounded-2xl border border-border overflow-hidden bg-card shadow-md hover:shadow-xl transition-all duration-300 flex flex-col"
+                    >
+                      <div
+                        className="h-24 relative"
+                        style={{
+                          background: `linear-gradient(135deg, hsl(${palette.cardGradientFrom}), hsl(${palette.cardGradientTo}))`,
+                        }}
+                      >
+                        <Badge className="absolute top-3 right-3 border-0 bg-background/90 text-foreground">
+                          {sectionTheme.categoryLabel}
+                        </Badge>
+                        <div className="absolute -bottom-6 left-5 h-12 w-12 rounded-full bg-slate-900 border-[3px] border-background flex items-center justify-center text-xl shadow-lg">
+                          <span className="translate-y-[1px]">{getAvatar(agent)}</span>
+                        </div>
+                      </div>
+                      <div className="pt-8 px-5 pb-5 flex flex-col flex-1">
+                        <p className="text-lg font-semibold text-foreground leading-tight">{agent.name}</p>
+                        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 mt-2 flex-1">
+                          {agent.description?.trim() || "No description provided."}
+                        </p>
+                        <div className="mt-4 flex gap-2">
+                          <Button
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => navigate(`/agents/${agent.id}/chat`)}
+                          >
+                            <MessageSquare className="h-4 w-4 mr-1.5" /> Chat
+                          </Button>
+                          {showCustomize ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/agents/${agent.slug}`)}
+                            >
+                              Customize
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </section>
             );
           })}

@@ -2,9 +2,8 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { useDashboardStats, useRecentActivity, getTimeAgo } from "@/hooks/useDashboard";
-import { useActionItemCounts } from "@/hooks/useActionItems";
-import { useUnreadCount } from "@/hooks/useNotifications";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,8 +23,8 @@ import {
   BriefcaseBusiness,
   ContactRound,
   Building2,
-  Bell,
   CheckSquare,
+  Bot,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -79,8 +78,8 @@ export default function Dashboard() {
 
 function UserDashboard() {
   const { profile, user } = useAuth();
-  const { data: counts } = useActionItemCounts();
-  const { data: unreadNotifications = 0 } = useUnreadCount();
+  const { isFeatureEnabled } = useFeatureFlags();
+  const showAgentCatalog = isFeatureEnabled("enableAIAgents");
   const { data: openTaskCount = 0 } = useQuery({
     queryKey: ["tasks", "open-assigned-count", user?.id],
     queryFn: async (): Promise<number> => {
@@ -103,9 +102,6 @@ function UserDashboard() {
     return "Good evening";
   };
 
-  const actionOpen = counts?.daily ?? 0;
-  const actionOverdue = counts?.overdue ?? 0;
-
   return (
     <div className="space-y-8">
       <div>
@@ -113,8 +109,7 @@ function UserDashboard() {
           {greeting()}, {profile?.full_name?.split(" ")[0] || "there"}
         </h1>
         <p className="mt-1 text-muted-foreground max-w-2xl">
-          Your workspace for loan support tasks, team action items, and AI help with guidelines and documents
-          your loan officers add to the knowledge base.
+          Your workspace for tasks, shared knowledge, and AI assistants enabled for your role.
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -139,51 +134,6 @@ function UserDashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link to="/action-items" className="group">
-          <Card className="h-full transition-shadow hover:shadow-md">
-            <CardContent className="flex items-start gap-4 p-5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <ListTodo className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold text-foreground">Action items</p>
-                  {actionOpen > 0 ? (
-                    <Badge variant="secondary" className="text-xs">
-                      {actionOpen} open
-                    </Badge>
-                  ) : null}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Pipeline follow-ups and AI-suggested next steps
-                  {actionOverdue > 0 ? ` · ${actionOverdue} overdue` : ""}
-                </p>
-              </div>
-              <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-            </CardContent>
-          </Card>
-        </Link>
-        <Link to="/notifications" className="group">
-          <Card className="h-full transition-shadow hover:shadow-md">
-            <CardContent className="flex items-start gap-4 p-5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <Bell className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold text-foreground">Notifications</p>
-                  {unreadNotifications > 0 ? (
-                    <Badge variant="default" className="text-xs">
-                      {unreadNotifications} new
-                    </Badge>
-                  ) : null}
-                </div>
-                <p className="text-sm text-muted-foreground">Loan updates and messages from your team</p>
-              </div>
-              <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-            </CardContent>
-          </Card>
-        </Link>
         <Link to="/knowledge" className="group">
           <Card className="h-full transition-shadow hover:shadow-md">
             <CardContent className="flex items-start gap-4 p-5">
@@ -198,22 +148,24 @@ function UserDashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link to="/ai" className="group">
-          <Card className="h-full transition-shadow hover:shadow-md sm:col-span-2 lg:col-span-1">
-            <CardContent className="flex items-start gap-4 p-5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <FileText className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-foreground">AI chat</p>
-                <p className="text-sm text-muted-foreground">
-                  Ask about process, conditions, and documents indexed from your team&apos;s knowledge
-                </p>
-              </div>
-              <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-            </CardContent>
-          </Card>
-        </Link>
+        {showAgentCatalog ? (
+          <Link to="/agents" className="group">
+            <Card className="h-full transition-shadow hover:shadow-md sm:col-span-2 lg:col-span-1">
+              <CardContent className="flex items-start gap-4 p-5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                  <Bot className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-foreground">AI agents</p>
+                  <p className="text-sm text-muted-foreground">
+                    Open the assistants available for your role
+                  </p>
+                </div>
+                <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              </CardContent>
+            </Card>
+          </Link>
+        ) : null}
       </div>
     </div>
   );

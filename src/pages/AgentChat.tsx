@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useChatScrollToBottom } from "@/hooks/useChatScrollToBottom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -15,6 +16,16 @@ import { toast } from "sonner";
 import { getInitials } from "@/lib/utils";
 import { format } from "date-fns";
 import { useAIAgent } from "@/hooks/useAIAgents";
+import {
+  useAgentConversations,
+  useAgentMessages,
+  useUpdateConversationTitle,
+  useDeleteAgentConversation,
+  type AgentConversation,
+} from "@/hooks/useAgentConversations";
+import { AgentMemoryPanel } from "@/components/agents/AgentMemoryPanel";
+import { queryKeys } from "@/lib/cache";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { isAgentAllowedForUser } from "@/lib/agentRoles";
 import {
   type LlmProvider,
@@ -60,6 +71,8 @@ import {
   PanelRight,
   Settings,
   ChevronDown,
+  Brain,
+  History,
 } from "lucide-react";
 
 interface Message {
@@ -69,11 +82,7 @@ interface Message {
   timestamp: Date;
 }
 
-interface ChatThread {
-  id: string;
-  title: string | null;
-  last_message_at: string;
-}
+type SidebarTab = "chats" | "memory";
 
 const DEFAULT_WELCOME =
   "Send a message to start the conversation. I'll use the agent's instructions to help you.";
@@ -129,14 +138,6 @@ function shouldAutoGenerateTitle(currentTitle?: string | null): boolean {
   return !normalized || normalized === "New chat";
 }
 
-function getConversationIdFromMetadata(metadata: unknown): string | null {
-  if (!metadata || typeof metadata !== "object") return null;
-  const maybeId = (metadata as Record<string, unknown>).conversation_id;
-  if (typeof maybeId !== "string") return null;
-  const normalized = maybeId.trim();
-  return normalized.length > 0 ? normalized : null;
-}
-
 interface AgentChatProps {
   fullScreen?: boolean;
 }
@@ -152,11 +153,25 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
   const isAdmin = profile?.role === "admin";
   const appSidebar = useAppSidebar();
   const adminSidebar = useAdminSidebar();
+  const queryClient = useQueryClient();
   const { data: agent, isLoading: agentLoading } = useAIAgent(agentId ?? "");
   const activeProvider: LlmProvider = resolveLlmProviderFromConfig(agent?.provider_config);
   const { data: activeIntegration } = useIntegrationSetting(
     isAdmin && activeProvider !== "lovable" ? activeProvider : ""
   );
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+
+  const { data: conversations = [], refetch: refetchConversations } = useAgentConversations(
+    agent?.id,
+    user?.id
+  );
+  const { data: messageRows = [], refetch: refetchMessages } = useAgentMessages(conversationId);
+  const updateTitle = useUpdateConversationTitle(agent?.id ?? "", user?.id ?? "");
+  const deleteConversation = useDeleteAgentConversation(agent?.id ?? "", user?.id ?? "");
 
   // Collapse the correct sidebar by default: admin sidebar when in admin panel, app sidebar when under /ai
   useEffect(() => {
@@ -167,17 +182,11 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
       appSidebar.setCollapsed(true);
     }
   }, [fullScreen, isAdminPath, adminSidebar?.setCollapsed, appSidebar?.setCollapsed]);
-
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  // Tracks the relational agent_conversations.id for the current chat session
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [threads, setThreads] = useState<ChatThread[]>([]);
-  const [renameThreadId, setRenameThreadId] = useState<string | null>(null);
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("chats");
+  const [renameConversationId, setRenameConversationId] = useState<string | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
-  const [deleteThreadId, setDeleteThreadId] = useState<string | null>(null);
+  const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
+  const [hasPickedInitialConversation, setHasPickedInitialConversation] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     try {
       const stored = localStorage.getItem("agent-chat-sidebar-open");
@@ -224,62 +233,47 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
             ? "Perplexity"
             : "OpenAI";
 
-  // Fetch threads list and load most recent thread for this user + agent
-  const fetchThreads = useCallback(async () => {
-    if (!user?.id || !agent?.slug) return;
-    try {
-      const { data, error } = await supabase
-        .from("ai_chat_threads")
-        .select("id, title, last_message_at")
-        .eq("user_id", user.id)
-        .eq("agent_slug", agent.slug)
-        .order("last_message_at", { ascending: false });
-      if (error) throw error;
-      setThreads((data ?? []) as ChatThread[]);
-    } catch (e) {
-      console.error("Fetch threads:", e);
-    }
-  }, [user?.id, agent?.slug]);
+  const activeConversation = useMemo(
+    () => conversations.find((c) => c.id === conversationId) ?? null,
+    [conversations, conversationId]
+  );
 
   useEffect(() => {
-    if (!user?.id || !agent?.slug) return;
-    fetchThreads();
-    async function loadLast() {
-      try {
-        const { data, error } = await supabase
-          .from("ai_chat_threads")
-          .select("id, messages, metadata")
-          .eq("user_id", user.id)
-          .eq("agent_slug", agent.slug)
-          .order("last_message_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (error) throw error;
-        if (data?.messages && Array.isArray(data.messages)) {
-          const restored: Message[] = data.messages.map((m: any, i: number) => ({
-            id: String(i + 1),
-            role: m.role === "user" ? "user" : "assistant",
-            content: String(m.content ?? ""),
-            timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
-          }));
-          if (restored.length > 0) {
-            setMessages(restored);
-            setThreadId(data.id);
-            setConversationId(getConversationIdFromMetadata(data.metadata));
-          }
-        }
-      } catch (e) {
-        console.error("Load thread:", e);
-      }
+    if (isLoading) return;
+    if (!conversationId) {
+      setMessages([]);
+      return;
     }
-    loadLast();
-  }, [user?.id, agent?.slug, fetchThreads]);
+    const restored: Message[] = messageRows.map((m) => ({
+      id: m.id,
+      role: m.role === "user" ? "user" : "assistant",
+      content: m.content,
+      timestamp: new Date(m.created_at),
+    }));
+    setMessages(restored);
+  }, [messageRows, conversationId, isLoading]);
+
+  useEffect(() => {
+    if (hasPickedInitialConversation || !conversations.length) return;
+    const latest = conversations[0];
+    if (latest?.id) {
+      setConversationId(latest.id);
+      setHasPickedInitialConversation(true);
+    }
+  }, [conversations, hasPickedInitialConversation]);
+
+  useEffect(() => {
+    setHasPickedInitialConversation(false);
+    setConversationId(null);
+    setMessages([]);
+  }, [agent?.id, user?.id]);
 
   const generateAndUpdateTitle = useCallback(
-    async (tid: string, allMessages: Message[], currentTitle?: string | null) => {
+    async (convId: string, currentTitle?: string | null) => {
       if (!shouldAutoGenerateTitle(currentTitle)) return;
-      const firstUser = allMessages.find((m) => m.role === "user")?.content?.slice(0, 200) ?? "";
-      const firstAssistant = allMessages.find((m) => m.role === "assistant")?.content?.slice(0, 200) ?? "";
+      const firstUser = messageRows.find((m) => m.role === "user")?.content?.slice(0, 200) ?? "";
+      const firstAssistant =
+        messageRows.find((m) => m.role === "assistant")?.content?.slice(0, 200) ?? "";
       if (!firstUser || !firstAssistant) return;
       try {
         const { data } = await supabase.functions.invoke("ai-chat-assistant", {
@@ -301,100 +295,44 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
         });
         const raw = data?.choices?.[0]?.message?.content ?? data?.response ?? "";
         const title = String(raw).trim().slice(0, 80) || "New chat";
-        await supabase.from("ai_chat_threads").update({ title }).eq("id", tid);
-        fetchThreads();
+        await supabase.from("agent_conversations").update({ title }).eq("id", convId);
+        refetchConversations();
       } catch {
-        // Non-blocking; keep "New chat" if generation fails
+        // Non-blocking
       }
     },
-    [fetchThreads]
+    [messageRows, refetchConversations]
   );
 
-  const persistThread = useCallback(
-    async (
-      allMessages: Message[],
-      title?: string | null,
-      linkedConversationId?: string | null
-    ) => {
-      if (!user || !agent) return;
-      const effectiveConversationId = linkedConversationId ?? conversationId;
-      const payload: Record<string, unknown> = {
-        user_id: user.id,
-        agent_slug: agent.slug,
-        messages: allMessages.map((m) => ({
-          role: m.role,
-          content: m.content,
-          timestamp: m.timestamp.toISOString(),
-        })),
-        last_message_at: new Date().toISOString(),
-      };
-      if (effectiveConversationId) {
-        payload.metadata = { conversation_id: effectiveConversationId };
-      }
-      if (title !== undefined) payload.title = title;
-      else if (!threadId) payload.title = "New chat";
-      try {
-        let resolvedId: string | null = null;
-        if (threadId) {
-          await supabase.from("ai_chat_threads").update(payload).eq("id", threadId);
-          resolvedId = threadId;
-          fetchThreads();
-        } else {
-          const { data } = await supabase
-            .from("ai_chat_threads")
-            .insert(payload)
-            .select("id")
-            .single();
-          if (data?.id) {
-            setThreadId(data.id);
-            fetchThreads();
-            resolvedId = data.id;
-          }
-        }
-        if (resolvedId && allMessages.length >= 2 && title === undefined) {
-          const currentTitle =
-            resolvedId === threadId
-              ? threads.find((t) => t.id === resolvedId)?.title
-              : "New chat";
-          generateAndUpdateTitle(resolvedId, allMessages, currentTitle);
-        }
-      } catch (e) {
-        console.error("Persist thread:", e);
-      }
-    },
-    [user, agent, threadId, fetchThreads, generateAndUpdateTitle, threads, conversationId]
-  );
-
-  const loadThread = useCallback(async (id: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("ai_chat_threads")
-        .select("id, messages, metadata")
-        .eq("id", id)
-        .single();
-      if (error || !data) throw error ?? new Error("Thread not found");
-      const restored: Message[] = Array.isArray(data.messages)
-        ? data.messages.map((m: any, i: number) => ({
-            id: String(i + 1),
-            role: m.role === "user" ? "user" : "assistant",
-            content: String(m.content ?? ""),
-            timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
-          }))
-        : [];
-      setMessages(restored);
-      setThreadId(data.id);
-      setConversationId(getConversationIdFromMetadata(data.metadata));
-    } catch (e) {
-      console.error("Load thread:", e);
-      toast.error("Failed to load conversation");
-    }
+  const loadConversation = useCallback((conv: AgentConversation) => {
+    setConversationId(conv.id);
+    setSidebarTab("chats");
   }, []);
 
   const handleNewChat = () => {
     setMessages([]);
-    setThreadId(null);
     setConversationId(null);
+    setSidebarTab("chats");
   };
+
+  const invalidateChatQueries = useCallback(
+    (convId: string | null) => {
+      if (agent?.id && user?.id) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.ai.conversations(agent.id, user.id),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.ai.memories(agent.id, user.id),
+        });
+      }
+      if (convId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.ai.messages(convId),
+        });
+      }
+    },
+    [agent?.id, user?.id, queryClient]
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -406,10 +344,11 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
       return;
     }
 
+    const userContent = input.trim();
     const userMsg: Message = {
-      id: String(Date.now()),
+      id: `pending-${Date.now()}`,
       role: "user",
-      content: input.trim(),
+      content: userContent,
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, userMsg]);
@@ -418,8 +357,6 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
     setIsLoading(true);
 
     try {
-      // Build conversation history for context (user+assistant turns only)
-      // System prompt is loaded server-side in run-ai-agent to prevent client injection
       const conversationHistory = messages.map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
@@ -428,36 +365,32 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
       const body: Record<string, unknown> = {
         agent_slug: agent.slug,
         agent_id: agent.id,
-        input: userMsg.content,
+        input: userContent,
         conversation_history: conversationHistory,
         conversation_id: conversationId,
       };
-      // Inject loan context so agent system prompt receives it under "Context:"
       if (loanContext) body.context = loanContext;
 
       const { data, error } = await supabase.functions.invoke("run-ai-agent", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Track the relational conversation_id for subsequent turns
       const responseConversationId =
         typeof data?.conversation_id === "string" ? (data.conversation_id as string) : null;
+      const resolvedConvId = responseConversationId ?? conversationId;
       if (responseConversationId && !conversationId) {
         setConversationId(responseConversationId);
+        setHasPickedInitialConversation(true);
       }
 
-      const assistantContent = data?.output ?? "I couldn't generate a response.";
-      const assistantMsg: Message = {
-        id: String(Date.now() + 1),
-        role: "assistant",
-        content: assistantContent,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => {
-        const next = [...prev, assistantMsg];
-        persistThread(next, undefined, responseConversationId ?? conversationId);
-        return next;
-      });
+      invalidateChatQueries(resolvedConvId);
+      await refetchMessages();
+      await refetchConversations();
+
+      if (resolvedConvId) {
+        const conv = conversations.find((c) => c.id === resolvedConvId);
+        generateAndUpdateTitle(resolvedConvId, conv?.title);
+      }
     } catch (err: unknown) {
       const message = await extractEdgeErrorMessage(err);
       console.error("Agent chat error:", err);
@@ -557,7 +490,14 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm truncate">{agent.name}</p>
-                  <p className="text-xs text-muted-foreground">{displayModel}</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                    {displayModel}
+                    {agent.memory_enabled && (
+                      <span className="inline-flex items-center rounded border px-1 py-0 text-[10px] font-medium">
+                        Memory
+                      </span>
+                    )}
+                  </p>
                 </div>
                 {showAgentConfigGear ? (
                   <Button
@@ -585,74 +525,117 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
                 New chat
               </Button>
             </div>
-            {/* Your chats — scrollable list */}
-            <div className="flex-1 flex flex-col min-h-0">
-              <p className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">Your chats</p>
-              <ScrollArea className="flex-1 min-h-[180px]">
-                <div className="pr-2 pb-3 space-y-0.5 px-1">
-              {threads.map((t) => (
-                <div
-                  key={t.id}
-                  className={`group flex items-start gap-3 rounded-lg px-3 py-2.5 text-left cursor-pointer transition-colors ${
-                    threadId === t.id
-                      ? "bg-primary/10 border-l-2 border-l-primary"
-                      : "hover:bg-muted/60 border-l-2 border-l-transparent"
-                  }`}
-                  onClick={() => loadThread(t.id)}
+            <div className="flex-1 flex flex-col min-h-0 px-1">
+              <Tabs
+                value={sidebarTab}
+                onValueChange={(v) => setSidebarTab(v as SidebarTab)}
+                className="flex flex-col flex-1 min-h-0"
+              >
+                <TabsList className="mx-2 mt-2 grid w-auto grid-cols-2">
+                  <TabsTrigger value="chats" className="text-xs gap-1">
+                    <History className="h-3.5 w-3.5" />
+                    Chats
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="memory"
+                    className="text-xs gap-1"
+                    disabled={!agent.memory_enabled}
+                  >
+                    <Brain className="h-3.5 w-3.5" />
+                    Memory
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value="chats" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden">
+                  <p className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Your chats
+                  </p>
+                  <ScrollArea className="flex-1 min-h-[180px]">
+                    <div className="pr-2 pb-3 space-y-0.5 px-1">
+                      {conversations.length === 0 && (
+                        <p className="px-3 py-4 text-xs text-muted-foreground text-center">
+                          No conversations yet. Send a message to start.
+                        </p>
+                      )}
+                      {conversations.map((t) => (
+                        <div
+                          key={t.id}
+                          className={`group flex items-start gap-3 rounded-lg px-3 py-2.5 text-left cursor-pointer transition-colors ${
+                            conversationId === t.id
+                              ? "bg-primary/10 border-l-2 border-l-primary"
+                              : "hover:bg-muted/60 border-l-2 border-l-transparent"
+                          }`}
+                          onClick={() => loadConversation(t)}
+                        >
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/80 mt-0.5">
+                            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p
+                              className="font-medium text-sm leading-snug line-clamp-2 break-words"
+                              title={t.title?.trim() || "New chat"}
+                            >
+                              {t.title?.trim() || "New chat"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {t.last_message_at
+                                ? formatThreadTime(t.last_message_at)
+                                : formatThreadTime(t.created_at)}
+                              {t.message_count > 0 ? ` · ${t.message_count} msgs` : ""}
+                            </p>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 shrink-0 opacity-60 group-hover:opacity-100 rounded-full mt-0.5"
+                                aria-label="Rename or delete chat"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="start"
+                              className="w-48"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <DropdownMenuItem
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  setRenameConversationId(t.id);
+                                  setRenameTitle(t.title?.trim() || "New chat");
+                                }}
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Rename
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  setDeleteConversationId(t.id);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </TabsContent>
+                <TabsContent
+                  value="memory"
+                  className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/80 mt-0.5">
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="font-medium text-sm leading-snug line-clamp-2 break-words"
-                      title={t.title?.trim() || "New chat"}
-                    >
-                      {t.title?.trim() || "New chat"}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatThreadTime(t.last_message_at)}
-                    </p>
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 shrink-0 opacity-60 group-hover:opacity-100 rounded-full mt-0.5"
-                        aria-label="Rename or delete chat"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-48" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenuItem
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          setRenameThreadId(t.id);
-                          setRenameTitle(t.title?.trim() || "New chat");
-                        }}
-                      >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Rename
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                        onSelect={(e) => {
-                          e.preventDefault();
-                          setDeleteThreadId(t.id);
-                        }}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
+                  {user?.id && agent?.id ? (
+                    <AgentMemoryPanel agentId={agent.id} userId={user.id} />
+                  ) : null}
+                </TabsContent>
+              </Tabs>
             </div>
           </>
         ) : (
@@ -680,7 +663,7 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
             </Button>
           )}
           <h1 className="font-medium text-sm truncate flex-1 min-w-0 text-center mx-2">
-            {threadId ? (threads.find((t) => t.id === threadId)?.title?.trim() || "New chat") : "New chat"}
+            {activeConversation?.title?.trim() || "New chat"}
           </h1>
           <span className="text-xs text-muted-foreground shrink-0">{displayModel}</span>
         </div>
@@ -830,8 +813,10 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
         </div>
       </main>
 
-      {/* Rename thread dialog */}
-      <Dialog open={!!renameThreadId} onOpenChange={(open) => !open && setRenameThreadId(null)}>
+      <Dialog
+        open={!!renameConversationId}
+        onOpenChange={(open) => !open && setRenameConversationId(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rename conversation</DialogTitle>
@@ -842,24 +827,17 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
             placeholder="Conversation title"
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameThreadId(null)}>
+            <Button variant="outline" onClick={() => setRenameConversationId(null)}>
               Cancel
             </Button>
             <Button
-              onClick={async () => {
-                if (!renameThreadId || !renameTitle.trim()) return;
-                try {
-                  await supabase
-                    .from("ai_chat_threads")
-                    .update({ title: renameTitle.trim() })
-                    .eq("id", renameThreadId);
-                  fetchThreads();
-                  setRenameThreadId(null);
-                  toast.success("Conversation renamed");
-                } catch (e) {
-                  console.error(e);
-                  toast.error("Failed to rename");
-                }
+              disabled={!renameConversationId || !renameTitle.trim() || updateTitle.isPending}
+              onClick={() => {
+                if (!renameConversationId || !renameTitle.trim()) return;
+                updateTitle.mutate(
+                  { conversationId: renameConversationId, title: renameTitle },
+                  { onSettled: () => setRenameConversationId(null) }
+                );
               }}
             >
               Save
@@ -868,59 +846,34 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Delete thread confirmation */}
-      <AlertDialog open={!!deleteThreadId} onOpenChange={(open) => !open && setDeleteThreadId(null)}>
+      <AlertDialog
+        open={!!deleteConversationId}
+        onOpenChange={(open) => !open && setDeleteConversationId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete conversation?</AlertDialogTitle>
             <AlertDialogDescription>
-              This cannot be undone. All messages in this conversation will be permanently deleted.
+              This cannot be undone. All messages and linked memories from this thread will be
+              removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteThreadId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setDeleteConversationId(null)}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={async () => {
-                if (!deleteThreadId) return;
-                try {
-                  const { data: threadToDelete, error: lookupError } = await supabase
-                    .from("ai_chat_threads")
-                    .select("metadata")
-                    .eq("id", deleteThreadId)
-                    .maybeSingle();
-                  if (lookupError) throw lookupError;
-
-                  const linkedConversationId =
-                    getConversationIdFromMetadata(threadToDelete?.metadata) ??
-                    (threadId === deleteThreadId ? conversationId : null);
-
-                  if (linkedConversationId) {
-                    const { error: conversationDeleteError } = await supabase
-                      .from("agent_conversations")
-                      .delete()
-                      .eq("id", linkedConversationId);
-                    if (conversationDeleteError) throw conversationDeleteError;
-                  }
-
-                  const { error: threadDeleteError } = await supabase
-                    .from("ai_chat_threads")
-                    .delete()
-                    .eq("id", deleteThreadId);
-                  if (threadDeleteError) throw threadDeleteError;
-
-                  if (threadId === deleteThreadId) {
-                    setMessages([]);
-                    setThreadId(null);
-                    setConversationId(null);
-                  }
-                  fetchThreads();
-                  setDeleteThreadId(null);
-                  toast.success("Conversation deleted");
-                } catch (e) {
-                  console.error(e);
-                  toast.error("Failed to delete");
-                }
+              disabled={deleteConversation.isPending}
+              onClick={() => {
+                if (!deleteConversationId) return;
+                deleteConversation.mutate(deleteConversationId, {
+                  onSuccess: () => {
+                    if (conversationId === deleteConversationId) {
+                      setMessages([]);
+                      setConversationId(null);
+                    }
+                    setDeleteConversationId(null);
+                  },
+                });
               }}
             >
               Delete

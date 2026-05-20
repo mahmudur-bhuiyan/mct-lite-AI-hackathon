@@ -54,7 +54,7 @@ export const queryKeys = {
     conversations: (agentId: string, userId: string) =>
       ["ai", "conversations", agentId, userId] as const,
     messages: (conversationId: string) => ["ai", "messages", conversationId] as const,
-    memories: (agentId: string, userId: string) => ["ai", "memories", agentId, userId] as const,
+    memories: (agentId: string, scopeKey: string) => ["ai", "memories", agentId, scopeKey] as const,
   },
 
   // Admin

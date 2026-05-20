@@ -138,7 +138,7 @@ export function useAgentMemories(
 
       return rows.map((r) => ({
         ...r,
-        owner_label: labelByUserId.get(r.user_id) ?? r.user_id.slice(0, 8),
+        owner_label: (labelByUserId.get(r.user_id) ?? r.user_id.slice(0, 8)) as string,
       }));
     },
     enabled: !!agentId && !!userId && enabled,

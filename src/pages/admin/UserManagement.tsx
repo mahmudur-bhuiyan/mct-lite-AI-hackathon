@@ -647,10 +647,20 @@ export default function UserManagement() {
           <DialogHeader>
             <DialogTitle>Invite New User</DialogTitle>
             <DialogDescription>
-              Send an invitation email to a new user
+              Creates the account immediately and emails sign-in credentials. The temporary password is also shown here so you can share it manually.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Full Name (optional)</Label>
+              <Input
+                id="full_name"
+                placeholder="Jane Doe"
+                value={inviteFullName}
+                onChange={(e) => setInviteFullName(e.target.value)}
+                disabled={processing}
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <Input
@@ -668,10 +678,7 @@ export default function UserManagement() {
                 value={inviteRole}
                 onChange={setInviteRole}
                 disabled={processing}
-                options={[
-                  ...APP_ROLES.map((r) => ({ value: r.value, label: r.label })),
-                  ...customRoles.map((r) => ({ value: r.id, label: r.name })),
-                ]}
+                options={INVITE_ROLES.map((r) => ({ value: r.value, label: r.label }))}
               />
             </div>
           </div>

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { toast } from "sonner";
 
 export interface UserInvite {
@@ -36,41 +36,44 @@ export function useUserInvites() {
   });
 }
 
+export interface CreateInviteResult {
+  user_id: string;
+  email: string;
+  role: string;
+  temp_password: string;
+  email_status: "sent" | "skipped" | "failed";
+  email_error: string | null;
+}
+
 export function useCreateUserInvite() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (params: { email: string; role: string }): Promise<UserInvite> => {
-      const { data, error } = await supabase
-        .from("user_invites")
-        .insert({
+    mutationFn: async (params: { email: string; role: string; full_name?: string }): Promise<CreateInviteResult> => {
+      const { data, error } = await supabase.functions.invoke("admin-invite-user", {
+        body: {
           email: params.email.trim().toLowerCase(),
           role: params.role,
-          invited_by: user?.id ?? null,
-        })
-        .select()
-        .single();
-
+          full_name: params.full_name ?? "",
+        },
+      });
       if (error) {
-        if (error.code === "42P01") {
-          throw new Error(
-            "user_invites table not yet created. Apply migration 20260512000000_user_invites_and_roles.sql first."
-          );
-        }
-        if (error.code === "23505") {
-          throw new Error(`An active invite already exists for ${params.email}.`);
-        }
-        throw error;
+        const msg = (error as any)?.message || "Failed to invite user";
+        throw new Error(msg);
       }
-      return data as UserInvite;
+      if (data?.error) throw new Error(data.error);
+      return data as CreateInviteResult;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["user_invites"] });
-      toast.success(`Invitation created for ${data.email}. Share the invite link or deploy send-borrower-email to email it.`);
+      if (data.email_status === "sent") {
+        toast.success(`Invite email sent to ${data.email}`);
+      } else {
+        toast.success(`User created for ${data.email}. Share the temporary password manually.`);
+      }
     },
     onError: (error: Error) => {
-      toast.error(error.message || "Failed to send invitation");
+      toast.error(error.message || "Failed to invite user");
     },
   });
 }

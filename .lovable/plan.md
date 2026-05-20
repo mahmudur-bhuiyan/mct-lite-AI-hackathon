@@ -1,55 +1,55 @@
-## Goal
+## 1. Seed demo data so all 3 roles see content
 
-- Remove the **AI Chat** sidebar entry (the standalone `/ai` page).
-- **AI Agents** page already lists only `is_enabled` admin-created agents — keep that, polish UX so a click goes straight to chat.
-- Loan officers (and other non-admin users with allowed roles) can **customize** an enabled agent (override system prompt, attach their own Knowledge Base entries) without affecting other users.
-- Chat history per agent stays persisted (already on `ai_chat_threads` + `ai_chat_messages`).
+Extend `supabase/functions/seed-demo-users` (idempotent) so after the 3 demo accounts are upserted, it also seeds:
 
-## Changes
+**Borrowers (owned by lo@demo.co):** ~5 borrowers (mix of states/cities) with `created_by = LO user id`, `data_source='demo'`.
 
-### 1. Hide AI Chat in the sidebar
-- In `src/components/layout/AppSidebar.tsx`, remove the `AI Chat` item from `aiToolsItems` and drop `/ai` from `loanOfficerNavAllow` / `userRoleNavAllow`.
-- Keep the `/ai` route mounted in `App.tsx` so deep links don't 404, but it's no longer reachable from nav.
+**Loans (owned by lo@demo.co):** ~6 loans across stages (`application`, `processing`, `underwriting`, `approved`, `closing`, `funded`) with `loan_officer_id = LO id`, `created_by = LO id`, realistic amounts/rates/LTV/credit/DTI, linked to seeded borrowers. `data_source='demo'`, deterministic `external_id` so re-runs upsert instead of duplicate.
 
-### 2. AI Agents browse → click goes straight to chat
-- `src/pages/AgentsBrowse.tsx`:
-  - Card primary CTA changes from **Learn More** → **Chat** and routes to `/agents/{agent.id}/chat`.
-  - Avatar buttons in the team header also navigate to chat.
-  - Add a small secondary `Details` link to keep `AgentDetail` accessible (so users can still read the user guide).
-- `useRoleFilteredAgents` already filters to `is_enabled && allowed-for-role` — no change.
+**Tasks (visible to all 3 roles):**
+- 2 tasks created by admin, assigned to LO (linked to a seeded loan)
+- 2 tasks created by LO, assigned to user@demo.co
+- 1 task assigned to admin
+RLS (`tasks_user_own`) already lets each role see their own assignments; admin sees all via `tasks_admin_all`.
 
-### 3. Per-user agent customization (LO “train it on my data”)
-New table + UI so LOs adapt an agent without editing the global row.
+**Idempotency:** delete existing rows where `data_source='demo'` (borrowers/loans) and tasks with a `[demo]` title prefix before re-inserting, so re-running the function refreshes cleanly without piling up rows.
 
-- New migration creating `public.user_agent_customizations`:
-  - `user_id uuid`, `agent_id uuid`, `system_prompt_override text`, `knowledge_entry_ids uuid[]`, `notes text`, timestamps. Unique `(user_id, agent_id)`.
-  - RLS: a user can SELECT/INSERT/UPDATE/DELETE only their own row; admins manage all.
-- New hook `useAgentCustomization(agentId)` (read + upsert).
-- New page/dialog `Customize Agent` reachable from each agent card and from `AgentChat` header (gear icon already there). It lets the user:
-  - Edit a personal system-prompt override (textarea, prefilled with the agent's base prompt).
-  - Pick Knowledge Base entries from `useKnowledge()` (multi-select) to attach as scope.
-  - Save / Reset to default.
+**Trigger:** add an "Reseed demo data" button in Admin → User Management (admin-only) that invokes `seed-demo-users`. Also document that publishing redeploys the function automatically.
 
-### 4. Wire customization into chat
-- `supabase/functions/run-ai-agent/index.ts`: before assembling the system prompt, look up `user_agent_customizations` for `(auth.uid(), agent_id)`. If present:
-  - Replace base `system_prompt` with the override.
-  - Add the selected `knowledge_entry_ids` to the knowledge-scope filter that the agent already uses.
-- No change to provider routing or memory pipeline.
+## 2. Admin invite → create user + email credentials
 
-### 5. Sidebar wiring & cleanup
-- Verify `loanOfficerNavAllow` still keeps `/agents`.
-- No removal of `AIChat` page file (kept for `/ai` direct link), only removed from nav.
+User chose **"Admin creates the user directly"** + **Lovable transactional email**.
 
-## Acceptance test
+**New edge function `admin-invite-user`** (verify_jwt off, validate caller is admin in code):
+- Input: `{ email, full_name?, role: 'admin'|'loan_officer'|'user' }`
+- Generates a strong temporary password
+- `admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata })`
+- Upserts `profiles` and resets `user_roles` to the requested role
+- Inserts a row in `user_invites` (audit trail, `used_at = now()`)
+- Calls `send-transactional-email` with subject "You've been invited to Mortgage Control Tower" and a branded HTML email containing: login URL, email, temp password, role, and a "change password on first login" note
+- Logs via `log_activity('user.invited', 'user', new_user_id, {...})`
 
-1. Sidebar: no **AI Chat** entry; **AI Agents** is still visible.
-2. `/agents` shows only enabled agents allowed for the user's role.
-3. Clicking an agent card → opens `/agents/{id}/chat`; messages stream and reload from history on revisit.
-4. As LO: open **Customize**, edit prompt + select 2 knowledge entries, save. Next chat reply uses the override and cites attached knowledge.
-5. As another user: same agent uses the original/global system prompt — customizations are not shared.
+**Email infra (one-time):** call `email_domain--scaffold_transactional_email` to generate the `send-transactional-email` function and queue infra. This requires a verified email domain — if none is configured, the publish step will surface the email setup dialog. Until DNS is verified, the function still enqueues; the response includes the temp password so the admin can share it manually as a fallback.
 
-## Out of scope
+**Frontend (`src/pages/admin/UserManagement.tsx` + `src/hooks/useUserInvites.ts`):**
+- Replace `useCreateUserInvite` mutation body with `supabase.functions.invoke('admin-invite-user', { body: {...} })`
+- On success, toast "Invite sent to {email}" and show the temp password in a dismissible dialog (admin can copy if email is delayed)
+- Keep the existing pending-invites list (now shows recently invited users)
+- Role dropdown options: `admin`, `loan_officer`, `user` (use `LiteRole` from `src/lib/permissions.ts`)
 
-- No edits to global `ai_agents` rows by non-admins.
-- No changes to provider/model routing or Lovable AI Gateway fallback.
-- No new admin screens — Admin → AI Agents already manages base agents.
+## 3. Verification
+
+- Run `seed-demo-users` → log in as each demo user:
+  - admin sees all 6 loans + all tasks
+  - lo sees own 6 loans + assigned/created tasks
+  - user sees only assigned tasks (no loans, expected — has no `loans:read`)
+- Admin → User Management → Invite "test@demo.co" as loan_officer → new row appears in auth users + profile + user_role, email queued (visible in Cloud → Emails), temp password shown in modal
+- Re-run seed → counts unchanged (idempotent)
+
+## Technical notes
+
+- No schema changes required; tasks/loans/borrowers tables already support the seed pattern.
+- `data_source='demo'` is the cleanup marker for borrowers/loans; tasks use a `[demo]` title prefix since they have no `data_source` column.
+- `admin-invite-user` uses `requireAdmin` from `supabase/functions/_shared/require-admin.ts`.
+- Email template lives inline in the edge function (small HTML string) — no React Email scaffold needed since this isn't an auth email.
+- If `send-transactional-email` is missing at call time, the function still creates the user and returns the temp password so the flow doesn't hard-fail on a fresh project.

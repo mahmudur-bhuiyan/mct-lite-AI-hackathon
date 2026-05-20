@@ -34,8 +34,15 @@ import { normalizeRoleString } from "@/lib/agentRoles";
 
 const APP_ROLES = [
   { value: "user" as const, label: "User" },
+  { value: "loan_officer" as const, label: "Loan Officer" },
   { value: "moderator" as const, label: "Manager" },
   { value: "admin" as const, label: "Admin" },
+] as const;
+
+const INVITE_ROLES = [
+  { value: "user", label: "User" },
+  { value: "loan_officer", label: "Loan Officer" },
+  { value: "admin", label: "Admin" },
 ] as const;
 
 interface UserProfile {
@@ -66,7 +73,10 @@ export default function UserManagement() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteFullName, setInviteFullName] = useState("");
   const [inviteRole, setInviteRole] = useState("user");
+  const [tempPasswordInfo, setTempPasswordInfo] = useState<{ email: string; password: string; emailSent: boolean } | null>(null);
+  const [seedingDemo, setSeedingDemo] = useState(false);
   const [editRole, setEditRole] = useState("");
   const [processing, setProcessing] = useState(false);
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
@@ -152,17 +162,42 @@ export default function UserManagement() {
 
     setProcessing(true);
     try {
-      await createInvite.mutateAsync({
+      const result = await createInvite.mutateAsync({
         email: inviteEmail,
         role: inviteRole,
+        full_name: inviteFullName,
       });
       setInviteDialogOpen(false);
       setInviteEmail("");
+      setInviteFullName("");
       setInviteRole("user");
+      setTempPasswordInfo({
+        email: result.email,
+        password: result.temp_password,
+        emailSent: result.email_status === "sent",
+      });
+      await fetchUsers();
     } catch (error: any) {
       // Error handling is done in the mutation hook
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleReseedDemo = async () => {
+    setSeedingDemo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-demo-users", { body: {} });
+      if (error) throw error;
+      const seed = (data as any)?.seed ?? {};
+      toast.success(
+        `Demo data refreshed — ${seed.borrowers ?? 0} borrowers, ${seed.loans ?? 0} loans, ${seed.tasks ?? 0} tasks`
+      );
+      await fetchUsers();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to reseed demo data");
+    } finally {
+      setSeedingDemo(false);
     }
   };
 
@@ -377,10 +412,16 @@ export default function UserManagement() {
             Manage user accounts, roles, and permissions
           </p>
         </div>
-        <Button onClick={() => setInviteDialogOpen(true)}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Invite User
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleReseedDemo} disabled={seedingDemo}>
+            {seedingDemo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            Reseed Demo Data
+          </Button>
+          <Button onClick={() => setInviteDialogOpen(true)}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Invite User
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -606,10 +647,20 @@ export default function UserManagement() {
           <DialogHeader>
             <DialogTitle>Invite New User</DialogTitle>
             <DialogDescription>
-              Send an invitation email to a new user
+              Creates the account immediately and emails sign-in credentials. The temporary password is also shown here so you can share it manually.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="full_name">Full Name (optional)</Label>
+              <Input
+                id="full_name"
+                placeholder="Jane Doe"
+                value={inviteFullName}
+                onChange={(e) => setInviteFullName(e.target.value)}
+                disabled={processing}
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <Input
@@ -627,10 +678,7 @@ export default function UserManagement() {
                 value={inviteRole}
                 onChange={setInviteRole}
                 disabled={processing}
-                options={[
-                  ...APP_ROLES.map((r) => ({ value: r.value, label: r.label })),
-                  ...customRoles.map((r) => ({ value: r.id, label: r.name })),
-                ]}
+                options={INVITE_ROLES.map((r) => ({ value: r.value, label: r.label }))}
               />
             </div>
           </div>
@@ -776,6 +824,41 @@ export default function UserManagement() {
                 </>
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Temp password dialog (shown after invite) */}
+      <Dialog open={!!tempPasswordInfo} onOpenChange={(o) => !o && setTempPasswordInfo(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>User created</DialogTitle>
+            <DialogDescription>
+              {tempPasswordInfo?.emailSent
+                ? `An invite email with sign-in credentials was sent to ${tempPasswordInfo?.email}.`
+                : `Email delivery isn't configured yet — share these credentials with ${tempPasswordInfo?.email} manually.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
+              <div className="text-sm"><span className="text-muted-foreground">Email:</span> <span className="font-medium">{tempPasswordInfo?.email}</span></div>
+              <div className="text-sm">
+                <span className="text-muted-foreground">Temporary password:</span>{" "}
+                <code className="rounded bg-background px-2 py-1 border font-mono">{tempPasswordInfo?.password}</code>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Ask the user to sign in and change their password right away.</p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (tempPasswordInfo) navigator.clipboard.writeText(tempPasswordInfo.password);
+                toast.success("Password copied");
+              }}
+            >
+              Copy password
+            </Button>
+            <Button onClick={() => setTempPasswordInfo(null)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { queryKeys } from "@/lib/cache";
 import { toast } from "sonner";
+import { useHideDemoData } from "@/hooks/useHideDemoData";
 
 export interface AgentConversation {
   id: string;
@@ -88,9 +89,10 @@ export function useAgentMemories(
 ) {
   const scope = options?.scope ?? "own";
   const enabled = options?.enabled ?? true;
+  const hideDemo = useHideDemoData();
 
   return useQuery({
-    queryKey: queryKeys.ai.memories(agentId ?? "", memoryScopeKey(userId ?? "", scope)),
+    queryKey: queryKeys.ai.memories(agentId ?? "", `${memoryScopeKey(userId ?? "", scope)}:${hideDemo}`),
     queryFn: async (): Promise<AgentMemoryRow[]> => {
       let query = supabase
         .from("agent_memories")
@@ -99,6 +101,10 @@ export function useAgentMemories(
         )
         .eq("agent_id", agentId!)
         .eq("is_active", true);
+
+      if (hideDemo) {
+        query = query.eq("is_demo", false);
+      }
 
       if (scope === "own") {
         query = query.eq("user_id", userId!);

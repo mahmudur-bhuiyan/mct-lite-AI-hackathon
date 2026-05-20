@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFeatureFlags } from "@/hooks/useFeatureFlags";
 import { useDashboardStats, useRecentActivity, getTimeAgo } from "@/hooks/useDashboard";
+import { useHideDemoData } from "@/hooks/useHideDemoData";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -79,16 +80,21 @@ export default function Dashboard() {
 function UserDashboard() {
   const { profile, user } = useAuth();
   const { isFeatureEnabled } = useFeatureFlags();
+  const hideDemo = useHideDemoData();
   const showAgentCatalog = isFeatureEnabled("enableAIAgents");
   const { data: openTaskCount = 0 } = useQuery({
-    queryKey: ["tasks", "open-assigned-count", user?.id],
+    queryKey: ["tasks", "open-assigned-count", user?.id, hideDemo],
     queryFn: async (): Promise<number> => {
-      const { count, error } = await supabase
+      let q = supabase
         .from("tasks")
         .select("id", { count: "exact", head: true })
         .eq("assigned_to", user!.id)
         .neq("status", "completed")
         .neq("status", "cancelled");
+      if (hideDemo) {
+        q = q.eq("is_demo", false);
+      }
+      const { count, error } = await q;
       if (error) throw error;
       return count ?? 0;
     },

@@ -22,6 +22,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { useHideDemoData } from "@/hooks/useHideDemoData";
 
 type DateRange = "7d" | "30d" | "month";
 
@@ -241,6 +242,7 @@ function parseUsage(run: RunRow): UsageEntry {
 
 export default function AIUsageAnalytics() {
   const [dateRange, setDateRange] = useState<DateRange>("30d");
+  const hideDemo = useHideDemoData();
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -266,16 +268,21 @@ export default function AIUsageAnalytics() {
     isError,
     error,
   } = useQuery({
-    queryKey: ["ai-usage-analytics", dateRange],
+    queryKey: ["ai-usage-analytics", dateRange, hideDemo],
     queryFn: async () => {
       const rangeStart = getRangeStart(dateRange);
 
-      const { data: runs, error: runsError } = await supabase
+      let runsQuery = supabase
         .from("ai_agent_runs")
         .select("id, created_at, user_id, provider_used, model_used, input, output, context, token_metrics, metadata")
         .gte("created_at", rangeStart)
         .order("created_at", { ascending: false })
         .limit(250);
+      if (hideDemo) {
+        runsQuery = runsQuery.eq("is_demo", false);
+      }
+
+      const { data: runs, error: runsError } = await runsQuery;
 
       if (runsError) throw runsError;
 

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { queryKeys, invalidateKeys } from "@/lib/cache";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/integrations/supabase/types";
+import { useHideDemoData } from "@/hooks/useHideDemoData";
 
 type NotificationRow = Database["public"]["Tables"]["notifications"]["Row"];
 
@@ -44,9 +45,10 @@ function mapRow(row: NotificationRow): Notification {
 
 export function useNotifications(filter?: "all" | "unread") {
   const { user } = useAuth();
+  const hideDemo = useHideDemoData();
 
   return useQuery({
-    queryKey: [...queryKeys.notifications.all, filter],
+    queryKey: [...queryKeys.notifications.all, filter, hideDemo],
     queryFn: async (): Promise<Notification[]> => {
       if (!user) return [];
 
@@ -56,6 +58,10 @@ export function useNotifications(filter?: "all" | "unread") {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(100);
+
+      if (hideDemo) {
+        q = q.eq("is_demo", false);
+      }
 
       if (filter === "unread") {
         q = q.eq("is_read", false);

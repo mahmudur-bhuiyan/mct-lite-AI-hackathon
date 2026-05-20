@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { useHideDemoData } from "@/hooks/useHideDemoData";
 
 export interface Task {
   id: string;
@@ -35,8 +36,9 @@ export interface TaskFormData {
 }
 
 export function useTasks(filters?: Record<string, any>) {
+  const hideDemo = useHideDemoData();
   return useQuery({
-    queryKey: ["tasks", "list", filters],
+    queryKey: ["tasks", "list", filters, hideDemo],
     queryFn: async (): Promise<Task[]> => {
       console.log("🔍 Fetching tasks with filters:", filters);
       
@@ -44,6 +46,10 @@ export function useTasks(filters?: Record<string, any>) {
         .from("tasks")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (hideDemo) {
+        query = query.eq("is_demo", false);
+      }
 
       // Apply filters
       if (filters?.status) {

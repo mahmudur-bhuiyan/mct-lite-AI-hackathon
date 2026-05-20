@@ -2,6 +2,7 @@
 import { supabase } from "@/lib/supabase";
 import type { Loan } from "@/hooks/useLoans";
 import type { PipelineExportLoan } from "@/lib/loan-export-utils";
+import { demoLoanSourcesInList } from "@/lib/demoData";
 
 /**
  * Loads loans visible under RLS with borrower join and risk_level from loan_risk_scores.
@@ -9,6 +10,7 @@ import type { PipelineExportLoan } from "@/lib/loan-export-utils";
 export async function fetchPipelineLoansWithRisk(filters?: {
   search?: string;
   status?: string;
+  hideDemo?: boolean;
 }): Promise<PipelineExportLoan[]> {
   let query = supabase
     .from("loans")
@@ -16,6 +18,9 @@ export async function fetchPipelineLoansWithRisk(filters?: {
     .order("created_at", { ascending: false });
 
   if (filters?.status) query = query.eq("status", filters.status);
+  if (filters?.hideDemo) {
+    query = query.not("data_source", "in", demoLoanSourcesInList());
+  }
   if (filters?.search?.trim()) {
     query = query.ilike("loan_number", `%${filters.search.trim()}%`);
   }

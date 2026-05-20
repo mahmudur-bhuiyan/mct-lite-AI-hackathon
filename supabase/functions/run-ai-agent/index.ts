@@ -38,9 +38,10 @@ interface RunAgentRequest {
   conversation_id?: string;
 }
 
-type LlmProvider = 'openai' | 'google' | 'anthropic' | 'perplexity';
+type LlmProvider = 'lovable' | 'openai' | 'google' | 'anthropic' | 'perplexity';
 
 function defaultModelForProvider(provider: LlmProvider): string {
+  if (provider === 'lovable') return 'google/gemini-3-flash-preview';
   if (provider === 'google') return 'gemini-2.0-flash';
   if (provider === 'anthropic') return 'claude-3-5-haiku-latest';
   if (provider === 'perplexity') return 'llama-3.1-sonar-small-128k-online';
@@ -54,6 +55,12 @@ function normalizeModelForProvider(model: string | null, provider: LlmProvider):
   const normalized = model.trim();
   if (!normalized) return fallback;
 
+  if (provider === 'lovable') {
+    if (/^gpt-|^o\d|^claude|^gemini-[^/]/i.test(normalized) && !normalized.includes('/')) {
+      return fallback;
+    }
+    return normalized;
+  }
   if (provider === 'google') {
     if (/^gpt-|^o\d|^claude/i.test(normalized)) return fallback;
     return normalized;
@@ -242,6 +249,7 @@ serve(async (req) => {
         ? providerConfig.provider.trim().toLowerCase()
         : '';
     const hasExplicitProvider =
+      providerFromConfig === 'lovable' ||
       providerFromConfig === 'openai' ||
       providerFromConfig === 'google' ||
       providerFromConfig === 'anthropic' ||
@@ -249,7 +257,7 @@ serve(async (req) => {
 
     let resolvedProvider: LlmProvider = hasExplicitProvider
       ? (providerFromConfig as LlmProvider)
-      : 'google';
+      : 'lovable';
 
     try {
       const { data: integrationRows } = await service
@@ -257,14 +265,17 @@ serve(async (req) => {
         .select('provider_name, api_key, is_active')
         .in('provider_name', ['openai', 'google', 'anthropic', 'perplexity']);
 
+      const lovableReady = !!Deno.env.get('LOVABLE_API_KEY');
+
       const isReady = (provider: LlmProvider) => {
+        if (provider === 'lovable') return lovableReady;
         const row = integrationRows?.find((r) => r.provider_name === provider);
         return !!row?.is_active && !!row?.api_key;
       };
 
-      // Respect explicit provider when it's ready; otherwise fail over to another active provider.
+      // Respect explicit provider when it's ready; otherwise fail over (Lovable first).
       if (!isReady(resolvedProvider)) {
-        const fallbackOrder: LlmProvider[] = ['google', 'openai', 'anthropic', 'perplexity'];
+        const fallbackOrder: LlmProvider[] = ['lovable', 'google', 'openai', 'anthropic', 'perplexity'];
         const fallback = fallbackOrder.find(isReady);
         if (fallback) {
           resolvedProvider = fallback;

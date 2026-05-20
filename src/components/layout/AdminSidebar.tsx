@@ -74,7 +74,7 @@ const sidebarGroups: SidebarGroup[] = [
   {
     title: "AI",
     items: [
-      { title: "AI Models", href: "/admin/ai-models", icon: Brain },
+      { title: "LLM Config", href: "/admin/ai/llm-config", icon: Brain },
       { title: "AI Agents", href: "/admin/agents", icon: Bot },
       { title: "AI Usage", href: "/admin/ai-usage", icon: BarChart },
     ],

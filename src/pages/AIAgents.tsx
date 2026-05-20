@@ -3,6 +3,14 @@ import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { FileRiskAgentPanel } from "@/components/loans/FileRiskAgentPanel";
 import { AgentUserGuideDialog } from "@/components/agents/AgentUserGuideDialog";
 import {
+  QuickStartWizard,
+  AgentCategoryGuide,
+  SystemPromptGuide,
+  MemorySystemGuide,
+  MultiAgentCollaborationInfo,
+  HITLApprovalInfo,
+} from "@/components/admin/AgentConfigurationGuide";
+import {
   useAIAgents,
   useCreateAgent,
   useUpdateAgent,
@@ -483,6 +491,13 @@ export default function AIAgents() {
                   {/* ─── Step 1: Basic Info ─── */}
                   {currentStep === 1 && (
                     <>
+                      {!editingAgent && (
+                        <div className="space-y-3">
+                          <QuickStartWizard />
+                          <AgentCategoryGuide />
+                        </div>
+                      )}
+
                       {/* Avatar picker */}
                       <div className="space-y-2">
                         <Label>Avatar</Label>
@@ -591,9 +606,12 @@ export default function AIAgents() {
 
                       {/* System Prompt */}
                       <div className="space-y-2">
-                        <Label htmlFor="system_prompt">
-                          System Prompt <span className="text-destructive">*</span>
-                        </Label>
+                        <div className="flex items-center justify-between gap-2">
+                          <Label htmlFor="system_prompt">
+                            System Prompt <span className="text-destructive">*</span>
+                          </Label>
+                          <SystemPromptGuide />
+                        </div>
                         <Textarea
                           id="system_prompt"
                           value={formData.system_prompt}
@@ -687,7 +705,7 @@ export default function AIAgents() {
                       {/* Memory toggle */}
                       <div className="flex items-center justify-between rounded-lg border p-4">
                         <div>
-                          <Label>Enable Memory</Label>
+                          <MemorySystemGuide />
                           <p className="text-sm text-muted-foreground">
                             Agent will remember previous interactions
                           </p>
@@ -719,6 +737,12 @@ export default function AIAgents() {
                   {/* ─── Step 3: Tools ─── */}
                   {currentStep === 3 && (
                     <div className="space-y-4">
+                      {!editingAgent && (
+                        <div className="space-y-3">
+                          <MultiAgentCollaborationInfo />
+                          <HITLApprovalInfo />
+                        </div>
+                      )}
                       <p className="text-sm text-muted-foreground">
                         Select tools and capabilities to enable for this agent.
                       </p>

@@ -412,10 +412,16 @@ export default function UserManagement() {
             Manage user accounts, roles, and permissions
           </p>
         </div>
-        <Button onClick={() => setInviteDialogOpen(true)}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Invite User
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleReseedDemo} disabled={seedingDemo}>
+            {seedingDemo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            Reseed Demo Data
+          </Button>
+          <Button onClick={() => setInviteDialogOpen(true)}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Invite User
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}

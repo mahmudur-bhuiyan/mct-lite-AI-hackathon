@@ -162,17 +162,42 @@ export default function UserManagement() {
 
     setProcessing(true);
     try {
-      await createInvite.mutateAsync({
+      const result = await createInvite.mutateAsync({
         email: inviteEmail,
         role: inviteRole,
+        full_name: inviteFullName,
       });
       setInviteDialogOpen(false);
       setInviteEmail("");
+      setInviteFullName("");
       setInviteRole("user");
+      setTempPasswordInfo({
+        email: result.email,
+        password: result.temp_password,
+        emailSent: result.email_status === "sent",
+      });
+      await fetchUsers();
     } catch (error: any) {
       // Error handling is done in the mutation hook
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleReseedDemo = async () => {
+    setSeedingDemo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-demo-users", { body: {} });
+      if (error) throw error;
+      const seed = (data as any)?.seed ?? {};
+      toast.success(
+        `Demo data refreshed — ${seed.borrowers ?? 0} borrowers, ${seed.loans ?? 0} loans, ${seed.tasks ?? 0} tasks`
+      );
+      await fetchUsers();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to reseed demo data");
+    } finally {
+      setSeedingDemo(false);
     }
   };
 

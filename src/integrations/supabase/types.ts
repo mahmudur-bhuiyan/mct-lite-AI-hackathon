@@ -50,6 +50,50 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_conversations: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          last_message_at: string | null
+          message_count: number
+          metadata: Json
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          message_count?: number
+          metadata?: Json
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          message_count?: number
+          metadata?: Json
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_conversations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_memories: {
         Row: {
           access_count: number
@@ -121,6 +165,50 @@ export type Database = {
             columns: ["superseded_by"]
             isOneToOne: false
             referencedRelation: "agent_memories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          latency_ms: number | null
+          metadata: Json
+          model_used: string | null
+          role: string
+          token_metrics: Json | null
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          metadata?: Json
+          model_used?: string | null
+          role: string
+          token_metrics?: Json | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          latency_ms?: number | null
+          metadata?: Json
+          model_used?: string | null
+          role?: string
+          token_metrics?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "agent_conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -898,6 +986,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_agent_personalizations: {
+        Row: {
+          additional_prompt: string | null
+          agent_id: string
+          communication_style: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          tone_preference: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          additional_prompt?: string | null
+          agent_id: string
+          communication_style?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          tone_preference?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          additional_prompt?: string | null
+          agent_id?: string
+          communication_style?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          tone_preference?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_agent_personalizations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_invites: {
         Row: {

@@ -827,6 +827,41 @@ export default function UserManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Temp password dialog (shown after invite) */}
+      <Dialog open={!!tempPasswordInfo} onOpenChange={(o) => !o && setTempPasswordInfo(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>User created</DialogTitle>
+            <DialogDescription>
+              {tempPasswordInfo?.emailSent
+                ? `An invite email with sign-in credentials was sent to ${tempPasswordInfo?.email}.`
+                : `Email delivery isn't configured yet — share these credentials with ${tempPasswordInfo?.email} manually.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-lg border bg-muted/40 p-4 space-y-2">
+              <div className="text-sm"><span className="text-muted-foreground">Email:</span> <span className="font-medium">{tempPasswordInfo?.email}</span></div>
+              <div className="text-sm">
+                <span className="text-muted-foreground">Temporary password:</span>{" "}
+                <code className="rounded bg-background px-2 py-1 border font-mono">{tempPasswordInfo?.password}</code>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Ask the user to sign in and change their password right away.</p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (tempPasswordInfo) navigator.clipboard.writeText(tempPasswordInfo.password);
+                toast.success("Password copied");
+              }}
+            >
+              Copy password
+            </Button>
+            <Button onClick={() => setTempPasswordInfo(null)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

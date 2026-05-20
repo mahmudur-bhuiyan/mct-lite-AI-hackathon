@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { demoLoanSourcesInList } from "@/lib/demoData";
+import { useHideDemoData } from "@/hooks/useHideDemoData";
 
 export interface DashboardStats {
   crm: {
@@ -40,9 +42,10 @@ function isAdminRole(role: string | null): boolean {
 
 export function useDashboardStats() {
   const { user } = useAuth();
+  const hideDemo = useHideDemoData();
 
   return useQuery({
-    queryKey: ["dashboard", "stats", user?.id],
+    queryKey: ["dashboard", "stats", user?.id, hideDemo],
     queryFn: async (): Promise<DashboardStats> => {
       if (!user) throw new Error("User not authenticated");
 
@@ -60,6 +63,9 @@ export function useDashboardStats() {
       let borrowerQuery = supabase
         .from("borrowers")
         .select("id", { count: "exact", head: true });
+      if (hideDemo) {
+        borrowerQuery = borrowerQuery.not("data_source", "in", demoLoanSourcesInList());
+      }
 
       let encompassLoansQuery = supabase
         .from("loans")

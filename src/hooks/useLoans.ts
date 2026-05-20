@@ -4,6 +4,8 @@ import { queryKeys, invalidateKeys } from "@/lib/cache";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 import { logCrud } from "@/lib/activity-logger";
+import { demoLoanSourcesInList } from "@/lib/demoData";
+import { useHideDemoData } from "@/hooks/useHideDemoData";
 
 export interface Loan {
   id: string;
@@ -84,6 +86,7 @@ interface LoanQueryFilters {
   status?: string;
   page?: number;
   dataSource?: string;
+  hideDemo?: boolean;
 }
 
 async function fetchLoans(filters?: LoanQueryFilters): Promise<LoansPaginatedResult> {
@@ -100,6 +103,9 @@ async function fetchLoans(filters?: LoanQueryFilters): Promise<LoansPaginatedRes
 
   if (filters?.status) query = query.eq("status", filters.status);
   if (filters?.dataSource?.trim()) query = query.eq("data_source", filters.dataSource.trim());
+  if (filters?.hideDemo) {
+    query = query.not("data_source", "in", demoLoanSourcesInList());
+  }
   if (filters?.search?.trim()) {
     query = query.ilike("loan_number", `%${filters.search.trim()}%`);
   }
@@ -118,16 +124,23 @@ async function fetchLoans(filters?: LoanQueryFilters): Promise<LoansPaginatedRes
 }
 
 export function useLoans(filters?: { search?: string; status?: string; page?: number }) {
+  const hideDemo = useHideDemoData();
   return useQuery({
-    queryKey: queryKeys.loans.list({ search: filters?.search, status: filters?.status, page: filters?.page }),
-    queryFn: () => fetchLoans(filters),
+    queryKey: queryKeys.loans.list({
+      search: filters?.search,
+      status: filters?.status,
+      page: filters?.page,
+      hideDemo,
+    }),
+    queryFn: () => fetchLoans({ ...filters, hideDemo }),
   });
 }
 
 export function useLoansBySource(source: string, filters?: { page?: number; search?: string; status?: string }) {
+  const hideDemo = useHideDemoData();
   return useQuery({
-    queryKey: ["loans-by-source", source, filters?.page ?? null, filters?.search ?? "", filters?.status ?? ""],
-    queryFn: () => fetchLoans({ ...filters, dataSource: source }),
+    queryKey: ["loans-by-source", source, filters?.page ?? null, filters?.search ?? "", filters?.status ?? "", hideDemo],
+    queryFn: () => fetchLoans({ ...filters, dataSource: source, hideDemo }),
     enabled: Boolean(source?.trim()),
   });
 }

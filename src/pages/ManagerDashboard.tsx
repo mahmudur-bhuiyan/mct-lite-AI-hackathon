@@ -6,6 +6,7 @@ import { useEffectivePermissions } from "@/hooks/useEffectivePermissions";
 import { useAgentEnabled, PORTFOLIO_SUMMARY_AGENT_SLUG, PIPELINE_PRIORITIZATION_AGENT_SLUG, RATE_ALERT_INTELLIGENCE_AGENT_SLUG, BRANCH_PERFORMANCE_COACH_AGENT_SLUG, MANAGER_INSIGHT_AGENT_SLUG } from "@/hooks/useAgentEnabled";
 import { useGeneratePipelineSummary } from "@/hooks/usePipelineSummary";
 import { fetchPipelineLoansWithRisk } from "@/lib/loan-export-queries";
+import { useHideDemoData } from "@/hooks/useHideDemoData";
 import {
   exportLoanPipelineToCSV,
   exportLoanPipelineToExcel,
@@ -292,12 +293,13 @@ export default function ManagerDashboard() {
   const [insightQuestion, setInsightQuestion] = useState("");
   const [insightAnswer, setInsightAnswer] = useState("");
   const [drilldown, setDrilldown] = useState<MetricDrilldown>(null);
+  const hideDemo = useHideDemoData();
 
   async function exportFullLoans(format: "csv" | "xls") {
     if (!canExport) return;
     setExportBusy(format === "csv" ? "loansCsv" : "loansXls");
     try {
-      const rows = await fetchPipelineLoansWithRisk({});
+      const rows = await fetchPipelineLoansWithRisk({ hideDemo });
       if (rows.length === 0) {
         toast.message("No loans in your scope to export.");
         return;

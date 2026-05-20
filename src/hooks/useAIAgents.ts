@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { queryKeys, invalidateKeys } from "@/lib/cache";
 import { logCrud } from "@/lib/activity-logger";
 import { isAgentAllowedForUser } from "@/lib/agentRoles";
+import { useHideDemoData } from "@/hooks/useHideDemoData";
 
 export interface AIAgent {
   id: string;
@@ -165,14 +166,19 @@ export function useRoleFilteredAgents() {
 
 export function useAgentRuns(agentId?: string) {
   const { user } = useAuth();
+  const hideDemo = useHideDemoData();
 
   return useQuery({
-    queryKey: agentId ? queryKeys.ai.runs(agentId) : ["ai", "runs"],
+    queryKey: agentId ? [...queryKeys.ai.runs(agentId), hideDemo] : ["ai", "runs", hideDemo],
     queryFn: async (): Promise<AgentRun[]> => {
       let query = supabase
         .from("ai_agent_runs")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (hideDemo) {
+        query = query.eq("is_demo", false);
+      }
 
       if (agentId) {
         query = query.eq("agent_id", agentId);

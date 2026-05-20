@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useLoans, LOANS_PAGE_SIZE } from "@/hooks/useLoans";
 import { fetchPipelineLoansWithRisk } from "@/lib/loan-export-queries";
+import { useHideDemoData } from "@/hooks/useHideDemoData";
 import {
   exportLoanPipelineToCSV,
   exportLoanPipelineToExcel,
@@ -107,6 +108,7 @@ export default function Loans() {
   const loans = loansResult?.rows ?? [];
   const totalCount = loansResult?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / LOANS_PAGE_SIZE));
+  const hideDemo = useHideDemoData();
   const { data: losIntegration } = useIntegrationSetting("lendingpad");
   const { data: hubspotIntegration } = useIntegrationSetting("hubspot");
   const { data: encompassIntegration } = useIntegrationSetting("encompass");
@@ -162,6 +164,7 @@ export default function Loans() {
       const rows = await fetchPipelineLoansWithRisk({
         search: search || undefined,
         status: status || undefined,
+        hideDemo,
       });
       if (rows.length === 0) {
         toast.message("No loans match the current filters to export.");

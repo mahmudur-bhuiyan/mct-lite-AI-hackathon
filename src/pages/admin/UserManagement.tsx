@@ -73,7 +73,10 @@ export default function UserManagement() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteFullName, setInviteFullName] = useState("");
   const [inviteRole, setInviteRole] = useState("user");
+  const [tempPasswordInfo, setTempPasswordInfo] = useState<{ email: string; password: string; emailSent: boolean } | null>(null);
+  const [seedingDemo, setSeedingDemo] = useState(false);
   const [editRole, setEditRole] = useState("");
   const [processing, setProcessing] = useState(false);
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);

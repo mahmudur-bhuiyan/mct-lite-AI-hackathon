@@ -51,6 +51,10 @@ export const queryKeys = {
     runs: (agentId: string) => ["ai", "runs", agentId] as const,
     chat: (sessionId: string) => ["ai", "chat", sessionId] as const,
     embeddings: (sourceId: string) => ["ai", "embeddings", sourceId] as const,
+    conversations: (agentId: string, userId: string) =>
+      ["ai", "conversations", agentId, userId] as const,
+    messages: (conversationId: string) => ["ai", "messages", conversationId] as const,
+    memories: (agentId: string, userId: string) => ["ai", "memories", agentId, userId] as const,
   },
 
   // Admin

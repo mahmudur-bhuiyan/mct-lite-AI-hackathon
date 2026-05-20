@@ -96,8 +96,11 @@ export default function AIModelManagement() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate("/admin/integrations")}>
+          <Button variant="outline" onClick={() => navigate("/admin/ai/llm-config")}>
             <Settings className="mr-2 h-4 w-4" />
+            LLM Config
+          </Button>
+          <Button variant="outline" onClick={() => navigate("/admin/integrations")}>
             Manage Integrations
           </Button>
           <Button onClick={() => navigate("/admin/ai-usage")}>

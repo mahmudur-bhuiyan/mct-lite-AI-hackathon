@@ -60,6 +60,7 @@ import Integrations from "./pages/admin/Integrations";
 import ProviderDetail from "./pages/admin/ProviderDetail";
 import OAuthCallback from "./pages/admin/OAuthCallback";
 import AIModelManagement from "./pages/admin/AIModelManagement";
+import LLMConfig from "./pages/admin/ai/LLMConfig";
 import AIUsageAnalytics from "./pages/admin/AIUsageAnalytics";
 import DeploymentChecklist from "./pages/admin/DeploymentChecklist";
 import FeedbackManagement from "./pages/admin/FeedbackManagement";
@@ -326,7 +327,8 @@ const App = () => (
                   <Route path="/admin/integrations" element={<Integrations />} />
                   <Route path="/admin/integrations/oauth/callback" element={<OAuthCallback />} />
                   <Route path="/admin/integrations/:slug" element={<ProviderDetail />} />
-                  <Route path="/admin/ai-models" element={<AIModelManagement />} />
+                  <Route path="/admin/ai/llm-config" element={<LLMConfig />} />
+                  <Route path="/admin/ai-models" element={<Navigate to="/admin/ai/llm-config" replace />} />
                   <Route path="/admin/ai-usage" element={<AIUsageAnalytics />} />
                   <Route path="/admin/agents" element={<AIAgents />} />
                   <Route path="/admin/agents/:agentId/chat" element={<AgentChat />} />

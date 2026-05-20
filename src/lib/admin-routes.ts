@@ -12,6 +12,7 @@ export const ADMIN_PATH_PERMISSION: Record<string, string> = {
   "/admin/logs": permissionKey("admin", "access"),
   "/admin/feedback": permissionKey("admin", "access"),
   "/admin/ai-models": permissionKey("admin", "access"),
+  "/admin/ai/llm-config": permissionKey("admin", "access"),
   "/admin/ai-usage": permissionKey("admin", "access"),
   "/admin/agents": permissionKey("admin", "access"),
   "/admin/settings": permissionKey("settings", "manage"),

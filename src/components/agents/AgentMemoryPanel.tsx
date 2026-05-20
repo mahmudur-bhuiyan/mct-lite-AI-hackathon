@@ -7,11 +7,14 @@ import {
   useAgentMemories,
   useForgetAgentMemory,
   type AgentMemoryRow,
+  type AgentMemoryScope,
 } from "@/hooks/useAgentConversations";
 
 interface AgentMemoryPanelProps {
   agentId: string;
   userId: string;
+  /** `all` — admin/moderator: every user's memories for this agent */
+  scope?: AgentMemoryScope;
 }
 
 function memoryTypeLabel(row: AgentMemoryRow): string {
@@ -19,9 +22,12 @@ function memoryTypeLabel(row: AgentMemoryRow): string {
   return row.memory_type.replace("_", " ");
 }
 
-export function AgentMemoryPanel({ agentId, userId }: AgentMemoryPanelProps) {
-  const { data: memories = [], isLoading, isError, refetch } = useAgentMemories(agentId, userId);
-  const forgetMemory = useForgetAgentMemory(agentId, userId);
+export function AgentMemoryPanel({ agentId, userId, scope = "own" }: AgentMemoryPanelProps) {
+  const { data: memories = [], isLoading, isError, refetch } = useAgentMemories(agentId, userId, {
+    scope,
+  });
+  const forgetMemory = useForgetAgentMemory(agentId);
+  const isAllUsers = scope === "all";
 
   if (isLoading) {
     return (
@@ -48,7 +54,9 @@ export function AgentMemoryPanel({ agentId, userId }: AgentMemoryPanelProps) {
         <Brain className="mx-auto h-8 w-8 text-muted-foreground/60 mb-2" />
         <p className="text-sm font-medium">No stored memories yet</p>
         <p className="text-xs text-muted-foreground mt-1 max-w-[240px] mx-auto">
-          Memories are extracted after each chat when memory is enabled on this agent.
+          {isAllUsers
+            ? "No memories stored for this agent yet."
+            : "Memories are extracted after each chat when memory is enabled on this agent."}
         </p>
       </div>
     );
@@ -84,6 +92,11 @@ export function AgentMemoryPanel({ agentId, userId }: AgentMemoryPanelProps) {
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
+            {isAllUsers && m.owner_label && (
+              <p className="text-[10px] text-muted-foreground mt-1 truncate" title={m.user_id}>
+                {m.owner_label}
+              </p>
+            )}
             <p className="text-sm mt-1.5 break-words leading-snug">{m.content}</p>
             <p className="text-[10px] text-muted-foreground mt-2">
               {format(new Date(m.created_at), "MMM d, yyyy")}

@@ -4,6 +4,8 @@ import {
   getNormalizedUserRoles,
   hasAnyRole,
   isAgentAllowedForUser,
+  canViewAgentMemoryPanel,
+  canViewAllAgentMemories,
   AGENT_ALLOWED_ROLES_BY_SLUG,
 } from "./agentRoles";
 
@@ -103,6 +105,24 @@ describe("hasAnyRole", () => {
   it("also normalises the allowedRoles entries", () => {
     // Allowlist written with spaces/mixed case should still match
     expect(hasAnyRole({ role: "loan_officer" }, ["Loan Officer"])).toBe(true);
+  });
+});
+
+describe("agent memory panel roles", () => {
+  it("hides memory panel for app role user", () => {
+    expect(canViewAgentMemoryPanel({ role: "user" })).toBe(false);
+  });
+
+  it("shows memory panel for loan_officer and admin", () => {
+    expect(canViewAgentMemoryPanel({ role: "loan_officer" })).toBe(true);
+    expect(canViewAgentMemoryPanel({ role: "admin" })).toBe(true);
+    expect(canViewAgentMemoryPanel({ role: "branch_manager" })).toBe(true);
+  });
+
+  it("allows all-memories scope only for admin and moderator", () => {
+    expect(canViewAllAgentMemories({ role: "admin" })).toBe(true);
+    expect(canViewAllAgentMemories({ role: "moderator" })).toBe(true);
+    expect(canViewAllAgentMemories({ role: "loan_officer" })).toBe(false);
   });
 });
 

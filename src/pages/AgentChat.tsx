@@ -26,7 +26,11 @@ import {
 import { AgentMemoryPanel } from "@/components/agents/AgentMemoryPanel";
 import { queryKeys } from "@/lib/cache";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { isAgentAllowedForUser } from "@/lib/agentRoles";
+import {
+  isAgentAllowedForUser,
+  canViewAgentMemoryPanel,
+  canViewAllAgentMemories,
+} from "@/lib/agentRoles";
 import {
   type LlmProvider,
   getDefaultModelForProvider,
@@ -151,10 +155,13 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
     ?.loanContext ?? null;
   const { user, profile } = useAuth();
   const isAdmin = profile?.role === "admin";
+  const canViewMemory = canViewAgentMemoryPanel(profile);
+  const canViewAllMemories = canViewAllAgentMemories(profile);
   const appSidebar = useAppSidebar();
   const adminSidebar = useAdminSidebar();
   const queryClient = useQueryClient();
   const { data: agent, isLoading: agentLoading } = useAIAgent(agentId ?? "");
+  const showMemoryTab = canViewMemory && !!agent?.memory_enabled;
   const activeProvider: LlmProvider = resolveLlmProviderFromConfig(agent?.provider_config);
   const { data: activeIntegration } = useIntegrationSetting(
     isAdmin && activeProvider !== "lovable" ? activeProvider : ""
@@ -268,6 +275,12 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
     setMessages([]);
   }, [agent?.id, user?.id]);
 
+  useEffect(() => {
+    if (!showMemoryTab && sidebarTab === "memory") {
+      setSidebarTab("chats");
+    }
+  }, [showMemoryTab, sidebarTab]);
+
   const generateAndUpdateTitle = useCallback(
     async (convId: string, currentTitle?: string | null) => {
       if (!shouldAutoGenerateTitle(currentTitle)) return;
@@ -322,7 +335,7 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
           queryKey: queryKeys.ai.conversations(agent.id, user.id),
         });
         queryClient.invalidateQueries({
-          queryKey: queryKeys.ai.memories(agent.id, user.id),
+          queryKey: ["ai", "memories", agent.id],
         });
       }
       if (convId) {
@@ -492,7 +505,7 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
                   <p className="font-medium text-sm truncate">{agent.name}</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
                     {displayModel}
-                    {agent.memory_enabled && (
+                    {showMemoryTab && (
                       <span className="inline-flex items-center rounded border px-1 py-0 text-[10px] font-medium">
                         Memory
                       </span>
@@ -527,23 +540,25 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
             </div>
             <div className="flex-1 flex flex-col min-h-0 px-1">
               <Tabs
-                value={sidebarTab}
-                onValueChange={(v) => setSidebarTab(v as SidebarTab)}
+                value={showMemoryTab ? sidebarTab : "chats"}
+                onValueChange={(v) => {
+                  if (showMemoryTab) setSidebarTab(v as SidebarTab);
+                }}
                 className="flex flex-col flex-1 min-h-0"
               >
-                <TabsList className="mx-2 mt-2 grid w-auto grid-cols-2">
+                <TabsList
+                  className={`mx-2 mt-2 grid w-auto ${showMemoryTab ? "grid-cols-2" : "grid-cols-1"}`}
+                >
                   <TabsTrigger value="chats" className="text-xs gap-1">
                     <History className="h-3.5 w-3.5" />
                     Chats
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="memory"
-                    className="text-xs gap-1"
-                    disabled={!agent.memory_enabled}
-                  >
-                    <Brain className="h-3.5 w-3.5" />
-                    Memory
-                  </TabsTrigger>
+                  {showMemoryTab && (
+                    <TabsTrigger value="memory" className="text-xs gap-1">
+                      <Brain className="h-3.5 w-3.5" />
+                      Memory
+                    </TabsTrigger>
+                  )}
                 </TabsList>
                 <TabsContent value="chats" className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden">
                   <p className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -627,14 +642,20 @@ export default function AgentChat({ fullScreen = false }: AgentChatProps) {
                     </div>
                   </ScrollArea>
                 </TabsContent>
-                <TabsContent
-                  value="memory"
-                  className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden"
-                >
-                  {user?.id && agent?.id ? (
-                    <AgentMemoryPanel agentId={agent.id} userId={user.id} />
-                  ) : null}
-                </TabsContent>
+                {showMemoryTab && (
+                  <TabsContent
+                    value="memory"
+                    className="flex-1 flex flex-col min-h-0 mt-0 data-[state=inactive]:hidden"
+                  >
+                    {user?.id && agent?.id ? (
+                      <AgentMemoryPanel
+                        agentId={agent.id}
+                        userId={user.id}
+                        scope={canViewAllMemories ? "all" : "own"}
+                      />
+                    ) : null}
+                  </TabsContent>
+                )}
               </Tabs>
             </div>
           </>

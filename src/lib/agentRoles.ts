@@ -58,6 +58,23 @@ export function hasAnyRole(
   return allowedRoles.some((r) => userRoles.has(normalizeRoleString(r)));
 }
 
+/** Roles that may open the Memory tab on agent chat (hidden for app role `user`). */
+export const AGENT_MEMORY_PANEL_ROLES = [
+  "admin",
+  "moderator",
+  "loan_officer",
+  "branch_manager",
+] as const;
+
+export function canViewAgentMemoryPanel(profile: RoleProfile | null | undefined): boolean {
+  return hasAnyRole(profile, AGENT_MEMORY_PANEL_ROLES);
+}
+
+/** Admins/moderators see all users' memories for an agent; others see only their own. */
+export function canViewAllAgentMemories(profile: RoleProfile | null | undefined): boolean {
+  return hasAnyRole(profile, ["admin", "moderator"]);
+}
+
 // ── Per-agent allowed-role allowlists ─────────────────────────────────────────
 //
 // Keys must match the slug stored in ai_agents.slug (and the constants in

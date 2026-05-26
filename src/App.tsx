@@ -115,8 +115,8 @@ const App = () => (
           <BrowserRouter>
           <Routes>
             {/* Public routes */}
-            <Route path="/" element={<Index />} />
-            <Route path="/home" element={<Index />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/home" element={<Navigate to="/login" replace />} />
             <Route path="/pricing-public" element={<Navigate to="/" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />

@@ -1,55 +1,68 @@
-## 1. Seed demo data so all 3 roles see content
+## Goal
 
-Extend `supabase/functions/seed-demo-users` (idempotent) so after the 3 demo accounts are upserted, it also seeds:
+The custom domain should land users on the login screen. Public landing page, demo-login buttons, Google sign-in, and self-serve admin signup all go away. The very first person to sign up becomes the superadmin; after that, signup is locked and new users can only join via admin invite. Login routes each user to the view that matches their role. while can keep the 3 demo accoutns which arre already present only when entered the creds.
 
-**Borrowers (owned by lo@demo.co):** ~5 borrowers (mix of states/cities) with `created_by = LO user id`, `data_source='demo'`.
+## Changes
 
-**Loans (owned by lo@demo.co):** ~6 loans across stages (`application`, `processing`, `underwriting`, `approved`, `closing`, `funded`) with `loan_officer_id = LO id`, `created_by = LO id`, realistic amounts/rates/LTV/credit/DTI, linked to seeded borrowers. `data_source='demo'`, deterministic `external_id` so re-runs upsert instead of duplicate.
+### 1. Routing (`src/App.tsx`)
 
-**Tasks (visible to all 3 roles):**
-- 2 tasks created by admin, assigned to LO (linked to a seeded loan)
-- 2 tasks created by LO, assigned to user@demo.co
-- 1 task assigned to admin
-RLS (`tasks_user_own`) already lets each role see their own assignments; admin sees all via `tasks_admin_all`.
+- `/` → `<Navigate to="/login" replace />` (drop `Index` import/usage).
+- `/home` → also redirect to `/login`.
+- Keep `Index.tsx` file in repo but unrouted (safe to delete later).
+- Leave `/signup` mounted — page itself enforces the new gating.
 
-**Idempotency:** delete existing rows where `data_source='demo'` (borrowers/loans) and tasks with a `[demo]` title prefix before re-inserting, so re-running the function refreshes cleanly without piling up rows.
+### 2. Login page (`src/pages/Login.tsx`)
 
-**Trigger:** add an "Reseed demo data" button in Admin → User Management (admin-only) that invokes `seed-demo-users`. Also document that publishing redeploys the function automatically.
+- Remove the entire **Demo Accounts** panel (`DEMO_ACCOUNTS`, `fillDemo`, `loginAsDemo`).
+- Remove Google sign-in button + divider + `handleGoogleSignIn`.
+- Remove the "Don't have an account? Sign up" footer link.
+- Keep role-based redirect (`routeForRole`) — already in place.
+- Add a small "Need access? Contact your administrator." note in place of the signup link.
 
-## 2. Admin invite → create user + email credentials
+### 3. Signup page (`src/pages/Signup.tsx`)
 
-User chose **"Admin creates the user directly"** + **Lovable transactional email**.
+- Remove Google button, full-name field stays, keep email + password + confirm password.
+- On mount, call new edge function `check-signup-open` (or query a public RPC) that returns `{ open: boolean }`:
+  - `open === false` → render a locked card: "Signup is closed. Ask an admin to invite you." with a link back to `/login`. No form.
+  - `open === true` → render the form (banner says "You'll be the workspace administrator").
+- On submit, call edge function `bootstrap-first-admin` (instead of direct `supabase.auth.signUp`):
+  - Function re-checks that no admin exists (race-safe), creates the user via service role with `email_confirm: true`, inserts `profiles` row, and inserts `user_roles { role: 'admin' }`.
+  - Returns success → frontend calls `signIn(email, password)` then navigates to `/admin`.
+- Remove the "Already have an account? Sign in" Google block; keep the plain text "Sign in" link.
 
-**New edge function `admin-invite-user`** (verify_jwt off, validate caller is admin in code):
-- Input: `{ email, full_name?, role: 'admin'|'loan_officer'|'user' }`
-- Generates a strong temporary password
-- `admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata })`
-- Upserts `profiles` and resets `user_roles` to the requested role
-- Inserts a row in `user_invites` (audit trail, `used_at = now()`)
-- Calls `send-transactional-email` with subject "You've been invited to Mortgage Control Tower" and a branded HTML email containing: login URL, email, temp password, role, and a "change password on first login" note
-- Logs via `log_activity('user.invited', 'user', new_user_id, {...})`
+### 4. New edge function `bootstrap-first-admin`
 
-**Email infra (one-time):** call `email_domain--scaffold_transactional_email` to generate the `send-transactional-email` function and queue infra. This requires a verified email domain — if none is configured, the publish step will surface the email setup dialog. Until DNS is verified, the function still enqueues; the response includes the temp password so the admin can share it manually as a fallback.
+Path: `supabase/functions/bootstrap-first-admin/index.ts` (verify_jwt = false).
 
-**Frontend (`src/pages/admin/UserManagement.tsx` + `src/hooks/useUserInvites.ts`):**
-- Replace `useCreateUserInvite` mutation body with `supabase.functions.invoke('admin-invite-user', { body: {...} })`
-- On success, toast "Invite sent to {email}" and show the temp password in a dismissible dialog (admin can copy if email is delayed)
-- Keep the existing pending-invites list (now shows recently invited users)
-- Role dropdown options: `admin`, `loan_officer`, `user` (use `LiteRole` from `src/lib/permissions.ts`)
+- `GET` / `?check=1` → returns `{ open: <count of admin role rows === 0> }`.
+- `POST { email, password, full_name }` →
+  1. Re-check admin count = 0; if not, return 403 `signup_closed`.
+  2. `supabase.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { full_name } })`.
+  3. Upsert `profiles` and insert `user_roles` with role `admin`.
+  4. `log_activity('first_admin_bootstrap', 'auth', user.id)`.
+  5. Return `{ ok: true }`.
+- Uses `SUPABASE_SERVICE_ROLE_KEY`.
 
-## 3. Verification
+### 5. Auth + invite flow (already in place, no rework)
 
-- Run `seed-demo-users` → log in as each demo user:
-  - admin sees all 6 loans + all tasks
-  - lo sees own 6 loans + assigned/created tasks
-  - user sees only assigned tasks (no loans, expected — has no `loans:read`)
-- Admin → User Management → Invite "test@demo.co" as loan_officer → new row appears in auth users + profile + user_role, email queued (visible in Cloud → Emails), temp password shown in modal
-- Re-run seed → counts unchanged (idempotent)
+- Admin invites via existing `admin-invite-user` edge function (creates user + role, returns temp password).
+- Invited users log in at `/login` and `routeForRole` sends them to:
+  - `admin`/`moderator` → `/admin`
+  - `loan_officer` → `/dashboard`
+  - `user` → `/knowledge`
+
+### 6. AuthContext (`src/contexts/AuthContext.tsx`)
+
+- No behavioral change required. `signInWithGoogle` stays exported (other code paths may import it) but is no longer invoked from Login/Signup UI.
 
 ## Technical notes
 
-- No schema changes required; tasks/loans/borrowers tables already support the seed pattern.
-- `data_source='demo'` is the cleanup marker for borrowers/loans; tasks use a `[demo]` title prefix since they have no `data_source` column.
-- `admin-invite-user` uses `requireAdmin` from `supabase/functions/_shared/require-admin.ts`.
-- Email template lives inline in the edge function (small HTML string) — no React Email scaffold needed since this isn't an auth email.
-- If `send-transactional-email` is missing at call time, the function still creates the user and returns the temp password so the flow doesn't hard-fail on a fresh project.
+- The `handle_new_user` DB trigger currently assigns role `user` on every signup. We bypass it for the first admin by using `admin.createUser` from the edge function and explicitly upserting `user_roles` to `admin` (the trigger's `ON CONFLICT DO NOTHING` on `(user_id, role)` means we just insert an additional `admin` row, then we delete the stray `user` row in the same transaction).
+- "Signup open" check uses `select count(*) from user_roles where role = 'admin'` via service role.
+- No new tables, no migration required.
+
+## Out of scope
+
+- Password reset flow (already exists).
+- Email delivery for invites (still surfaces temp password in admin modal until a sender domain is verified).
+- Removing/cleaning the `Index.tsx` landing components (left in repo, just unrouted).

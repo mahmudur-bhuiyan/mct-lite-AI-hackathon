@@ -95,7 +95,6 @@ const sidebarGroups: SidebarGroup[] = [
 
 export function AdminSidebar() {
   const location = useLocation();
-  const { companyName } = useBranding();
   const { status: integrationStatus } = useIntegrationStatus();
   const { hasPermission } = useEffectivePermissions();
   const { profile } = useAuth();

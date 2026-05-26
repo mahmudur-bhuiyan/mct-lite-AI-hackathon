@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Bell, LogOut, User, Settings, Search, ExternalLink, FileText, Users, Calendar, Loader2, Shield } from "lucide-react";
+import { Bell, LogOut, User, Settings, Search, ExternalLink, FileText, Users, Calendar, Loader2, Shield, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { getInitials } from "@/lib/utils";
 import { useState } from "react";
@@ -27,6 +27,9 @@ import { useSemanticSearch } from "@/hooks/useSemanticSearch";
 import { RiskAlertsBell } from "@/components/loans/RiskAlertsBell";
 import { useAdminSidebar } from "@/contexts/AdminSidebarContext";
 import { useAppSidebar } from "@/contexts/AppSidebarContext";
+
+const ABOUT_URL =
+  import.meta.env.VITE_ABOUT_BRAND_URL ?? "https://collabai.software/";
 
 export function TopNav() {
   const { user, profile, signOut } = useAuth();
@@ -75,6 +78,10 @@ export function TopNav() {
     } catch (error) {
       console.error("Sign out error:", error);
     }
+  };
+
+  const handleAboutClick = () => {
+    window.open(ABOUT_URL, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -299,6 +306,15 @@ export function TopNav() {
                   </DropdownMenuItem>
                 </>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleAboutClick}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <Info className="h-4 w-4" />
+                About Us
+                <ExternalLink className="ml-auto h-3 w-3 text-muted-foreground" />
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 onClick={handleSignOut} 

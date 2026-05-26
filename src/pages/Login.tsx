@@ -30,7 +30,7 @@ export default function Login() {
         const { data, error } = await supabase.functions.invoke("bootstrap-first-admin", {
           method: "GET",
         });
-        if (!error) setBootstrapOpen(Boolean((data as any)?.open));
+        if (!error) setBootstrapOpen(Boolean((data as { open?: boolean })?.open));
       } catch {
         // Non-fatal — login still works even if bootstrap check fails
       }
@@ -59,8 +59,8 @@ export default function Login() {
     try {
       await signIn(email, password);
       await resolveRoleAndNavigate();
-    } catch (error: any) {
-      setError(error.message || "Failed to sign in");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to sign in");
     } finally {
       setLoading(false);
     }

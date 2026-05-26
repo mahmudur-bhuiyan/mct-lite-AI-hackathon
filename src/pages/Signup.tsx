@@ -28,7 +28,7 @@ export default function Signup() {
           method: "GET",
         });
         if (error) throw error;
-        setOpen(Boolean((data as any)?.open));
+        setOpen(Boolean((data as { open?: boolean })?.open));
       } catch {
         setOpen(false);
       } finally {
@@ -50,11 +50,12 @@ export default function Signup() {
         body: { email, password, full_name: fullName },
       });
       if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).error);
+      const result = data as { ok?: boolean; error?: string } | null;
+      if (result?.error) throw new Error(result.error);
       await signIn(email, password);
       navigate("/admin", { replace: true });
-    } catch (err: any) {
-      setError(err.message || "Failed to create account");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create account");
     } finally {
       setLoading(false);
     }

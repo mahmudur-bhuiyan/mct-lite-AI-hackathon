@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import logoUrl from "@/assets/mortgageai-logo.svg";
 import { cn } from "@/lib/utils";
-import { useBranding } from "@/contexts/BrandingContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIntegrationStatus } from "@/hooks/useIntegrationStatus";
 import { useEffectivePermissions } from "@/hooks/useEffectivePermissions";

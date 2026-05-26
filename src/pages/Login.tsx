@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Brain, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
+import logoUrl from "@/assets/mortgageai-logo.svg";
 
 function routeForRole(role: string | undefined): string {
   if (role === "admin" || role === "moderator") return "/admin";
@@ -69,10 +70,12 @@ export default function Login() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col items-center space-y-2">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-sm">
-            <Brain className="h-7 w-7 text-primary-foreground" />
+          <div className="flex flex-col items-center gap-1 rounded-xl bg-white px-5 py-3 shadow-sm border border-border">
+            <img src={logoUrl} alt="MortgageAI" className="h-8 w-auto" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Control Tower
+            </span>
           </div>
-          <h1 className="text-xl font-semibold text-foreground">MCT Lite</h1>
         </div>
 
         {bootstrapOpen === true && (

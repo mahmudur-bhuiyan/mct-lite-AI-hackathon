@@ -90,7 +90,7 @@ export function FeatureGrid() {
       <div className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            What&apos;s in <span className="text-primary">MCT Lite</span>
+            What&apos;s in <span className="text-primary">Control Tower</span>
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
             A focused set of features for origination teams — pipeline, tasks, knowledge, AI, and

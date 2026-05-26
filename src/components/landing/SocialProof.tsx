@@ -35,7 +35,7 @@ const stats = [
 const testimonials = [
   {
     quote:
-      "We stopped screenshotting LOS screens into Slack. The team sees the same action items and knowledge in MCT Lite.",
+      "We stopped screenshotting LOS screens into Slack. The team sees the same action items and knowledge in Control Tower.",
     author: "Jordan K.",
     role: "Loan Officer, Independent broker",
     metric: "Less context switching",
@@ -65,7 +65,7 @@ export function SocialProof() {
       <div className="mx-auto max-w-7xl px-6 py-20 lg:py-28">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Teams running files on <span className="text-primary">MCT Lite</span>
+            Teams running files on <span className="text-primary">Control Tower</span>
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
             Loan officers, processors, and branch leads use a shared workspace for status, tasks,

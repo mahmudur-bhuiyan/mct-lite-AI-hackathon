@@ -16,8 +16,8 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   const { data: config, isLoading } = useAppConfig();
 
   const value: BrandingContextType = {
-    companyName: config?.branding?.companyName || "Mortgage Control Tower Lite",
-    shortName: (config?.branding as any)?.shortName || "MCT Lite",
+    companyName: config?.branding?.companyName || "MortgageAI Control Tower",
+    shortName: (config?.branding as any)?.shortName || "Control Tower",
     tagline: config?.branding?.tagline || "Your loan pipeline. Simplified.",
     supportEmail: config?.branding?.supportEmail || "support@mortgagecontroltower.com",
     logoUrl: (config?.branding as any)?.logoUrl,

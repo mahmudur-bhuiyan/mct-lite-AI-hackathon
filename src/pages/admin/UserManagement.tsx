@@ -76,7 +76,7 @@ export default function UserManagement() {
   const [inviteFullName, setInviteFullName] = useState("");
   const [inviteRole, setInviteRole] = useState("user");
   const [tempPasswordInfo, setTempPasswordInfo] = useState<{ email: string; password: string; emailSent: boolean } | null>(null);
-  const [seedingDemo, setSeedingDemo] = useState(false);
+  
   const [editRole, setEditRole] = useState("");
   const [processing, setProcessing] = useState(false);
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
@@ -184,22 +184,6 @@ export default function UserManagement() {
     }
   };
 
-  const handleReseedDemo = async () => {
-    setSeedingDemo(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("seed-demo-users", { body: {} });
-      if (error) throw error;
-      const seed = (data as any)?.seed ?? {};
-      toast.success(
-        `Demo data refreshed — ${seed.borrowers ?? 0} borrowers, ${seed.loans ?? 0} loans, ${seed.tasks ?? 0} tasks`
-      );
-      await fetchUsers();
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to reseed demo data");
-    } finally {
-      setSeedingDemo(false);
-    }
-  };
 
   const handleUpdateUserRole = async () => {
     if (!selectedUser) return;
@@ -413,10 +397,6 @@ export default function UserManagement() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleReseedDemo} disabled={seedingDemo}>
-            {seedingDemo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            Reseed Demo Data
-          </Button>
           <Button onClick={() => setInviteDialogOpen(true)}>
             <UserPlus className="mr-2 h-4 w-4" />
             Invite User

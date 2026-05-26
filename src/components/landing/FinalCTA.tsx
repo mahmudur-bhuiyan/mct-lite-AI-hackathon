@@ -21,7 +21,7 @@ export function FinalCTA() {
           </p>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-primary-foreground/70">
-            MCT Lite helps your team close the loop on status, action items, and borrower
+            Control Tower helps your team close the loop on status, action items, and borrower
             follow-through — with AI that respects your roles and your docs.
           </p>
 
@@ -63,7 +63,7 @@ export function FinalCTA() {
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4" />
-              <span>Aligned with how MCT Lite ships today</span>
+              <span>Aligned with how Control Tower ships today</span>
             </div>
           </div>
         </div>

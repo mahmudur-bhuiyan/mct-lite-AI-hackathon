@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
-import { Building2, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
+import logoUrl from "@/assets/mortgageai-logo.svg";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -25,13 +26,13 @@ export function PublicDocsLayout({ children }: PublicDocsLayoutProps) {
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-                <Building2 className="h-5 w-5 text-primary-foreground" />
+              <div className="flex flex-col gap-0.5 rounded-lg bg-white px-3 py-1.5 shadow-sm border border-border">
+                <img src={logoUrl} alt="MortgageAI" className="h-5 w-auto" />
+                <span className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Control Tower
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-bold">Mortgage Control Tower</span>
-                <span className="text-muted-foreground">Docs</span>
-              </div>
+              <span className="text-muted-foreground text-sm">Docs</span>
             </Link>
 
             {/* Navigation */}

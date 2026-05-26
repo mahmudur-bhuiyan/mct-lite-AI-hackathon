@@ -33,7 +33,7 @@ export function ProblemSolution() {
             Less Scrambling, <span className="text-destructive">More Flow</span>
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            MCT Lite is built for day-to-day loan operations — clear status, shared knowledge,
+            Control Tower is built for day-to-day loan operations — clear status, shared knowledge,
             and AI that helps the team stay aligned.
             <span className="font-medium text-foreground"> One place to work the file forward.</span>
           </p>
@@ -50,7 +50,7 @@ export function ProblemSolution() {
             </div>
             <div className="hidden md:block rounded-xl bg-mortgage-green-light border border-success/20 p-4 text-center">
               <span className="text-sm font-semibold text-success uppercase tracking-wide">
-                ✓ With MCT Lite
+                ✓ With Control Tower
               </span>
             </div>
 

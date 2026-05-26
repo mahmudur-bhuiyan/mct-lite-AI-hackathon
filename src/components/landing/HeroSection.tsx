@@ -100,7 +100,7 @@ export function HeroSection() {
                   <div className="h-3 w-3 rounded-full bg-accent" />
                   <div className="h-3 w-3 rounded-full bg-success" />
                 </div>
-                <span className="text-xs font-medium text-muted-foreground">MCT Lite snapshot</span>
+                <span className="text-xs font-medium text-muted-foreground">Control Tower snapshot</span>
               </div>
 
               {/* Metrics Cards */}

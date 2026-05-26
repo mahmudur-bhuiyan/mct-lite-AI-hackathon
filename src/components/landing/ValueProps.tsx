@@ -58,7 +58,7 @@ export function ValueProps() {
             Built for <span className="text-primary">Loan Teams</span>, Not Spreadsheets
           </h2>
           <p className="mt-4 text-lg text-muted-foreground">
-            MCT Lite does not replace your LOS. It gives loan officers, processors, and leads a
+            Control Tower does not replace your LOS. It gives loan officers, processors, and leads a
             lightweight layer for status, tasks, knowledge, and AI — without enterprise bloat.
           </p>
         </div>

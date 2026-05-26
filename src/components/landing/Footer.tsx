@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Building2, Linkedin, Twitter } from "lucide-react";
+import { Linkedin, Twitter } from "lucide-react";
+import logoUrl from "@/assets/mortgageai-logo.svg";
 
 const product = [
   { name: "Features", href: "#features" },
@@ -44,13 +45,12 @@ export function Footer() {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           {/* Brand Column */}
           <div className="col-span-2">
-            <Link to="/" className="flex items-center gap-2 mb-4 group">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary group-hover:bg-primary/90 transition-colors">
-                <Building2 className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-bold text-lg">MCT Lite</span>
-                <span className="text-xs text-secondary-foreground/50">Mortgage Control Tower Lite</span>
+            <Link to="/" className="flex items-center gap-3 mb-4 group">
+              <div className="flex flex-col gap-0.5 rounded-lg bg-white/95 px-3 py-2 shadow-sm group-hover:bg-white transition-colors">
+                <img src={logoUrl} alt="MortgageAI" className="h-6 w-auto" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+                  Control Tower
+                </span>
               </div>
             </Link>
             <p className="text-sm text-secondary-foreground/70 leading-relaxed mb-4">

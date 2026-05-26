@@ -57,6 +57,8 @@ interface SidebarItem {
   featureFlag?: "enableClients" | "enableMeetings" | "enableTasks" | "enableKnowledgeBase" | "enableAIChat" | "enableAIAgents" | "enableFeedback";
   /** When set, item is only shown if the specified AI agent is enabled. */
   agentSlug?: string;
+  /** data-tour anchor id for the guided product tour. */
+  tourId?: string;
 }
 
 const navigationItems: SidebarItem[] = [
@@ -64,6 +66,7 @@ const navigationItems: SidebarItem[] = [
     title: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+    tourId: "dashboard",
   },
   {
     title: "Loans",
@@ -71,6 +74,7 @@ const navigationItems: SidebarItem[] = [
     icon: Banknote,
     permission: permissionKey("loans", "read"),
     module: "loans",
+    tourId: "loans",
   },
   {
     title: "Borrowers",
@@ -78,6 +82,7 @@ const navigationItems: SidebarItem[] = [
     icon: UserPlus,
     permission: permissionKey("borrowers", "read"),
     module: "loans",
+    tourId: "borrowers",
   },
   {
     title: "Tasks",
@@ -85,11 +90,13 @@ const navigationItems: SidebarItem[] = [
     icon: CheckSquare,
     permission: permissionKey("tasks", "read"),
     featureFlag: "enableTasks",
+    tourId: "tasks",
   },
   {
     title: "Action Items",
     href: "/action-items",
     icon: ListTodo,
+    tourId: "action-items",
   },
   {
     title: "Knowledge Base",
@@ -97,11 +104,13 @@ const navigationItems: SidebarItem[] = [
     icon: BookOpen,
     permission: permissionKey("knowledge", "read"),
     featureFlag: "enableKnowledgeBase",
+    tourId: "knowledge",
   },
   {
     title: "Notifications",
     href: "/notifications",
     icon: Inbox,
+    tourId: "notifications",
   },
 ];
 
@@ -239,6 +248,7 @@ export function AppSidebar() {
         ) : (
           <Link
             to={item.href}
+            data-tour={item.tourId}
             className={cn(
               "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all duration-200",
               collapsed && "justify-center px-2",
@@ -410,7 +420,7 @@ export function AppSidebar() {
             <div>
               {!collapsed && <div className="sidebar-divider mx-3" />}
               {!collapsed && (
-                <div className="mb-3 px-3 flex items-center gap-2">
+                <div className="mb-3 px-3 flex items-center gap-2" data-tour="ai-tools">
                   <span className="sidebar-section-label">
                     AI Tools
                   </span>

@@ -10,6 +10,9 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { AdminSidebarProvider, useAdminSidebar } from "@/contexts/AdminSidebarContext";
 import { cn } from "@/lib/utils";
 import { ContactCollabAIButton } from "@/components/ContactCollabAIButton";
+import { useTour } from "@/hooks/useTour";
+import { TourProvider } from "@/contexts/TourContext";
+import { AppTour } from "@/components/tour/AppTour";
 
 interface AdminLayoutProps {
   children?: ReactNode;
@@ -28,6 +31,7 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
   const { collapsed } = useAdminSidebar();
   const mainMargin = collapsed ? "ml-16" : "ml-64";
   const noRightPadding = isAdminAgentChatRoute(location.pathname);
+  const tour = useTour(user?.id);
 
   const rootHeightClass = isAdminAgentChatRoute(location.pathname)
     ? "h-screen overflow-hidden"
@@ -86,20 +90,23 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
   }
 
   return (
-    <div className={cn(rootHeightClass, "bg-background")}>
-      <AdminSidebar />
-      <TopNav />
-      <main
-        className={cn(
-          mainMargin,
-          mainBaseClasses,
-          mainChatExtras
-        )}
-      >
-        {children || <Outlet />}
-      </main>
-      <ContactCollabAIButton />
-    </div>
+    <TourProvider value={tour}>
+      <div className={cn(rootHeightClass, "bg-background")}>
+        <AdminSidebar />
+        <TopNav />
+        <main
+          className={cn(
+            mainMargin,
+            mainBaseClasses,
+            mainChatExtras
+          )}
+        >
+          {children || <Outlet />}
+        </main>
+        <AppTour tour={tour} variant="admin" />
+        <ContactCollabAIButton />
+      </div>
+    </TourProvider>
   );
 }
 

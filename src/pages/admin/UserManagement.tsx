@@ -102,10 +102,10 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Fetch all profiles
+      // Fetch all profiles (only columns that exist in this project's schema)
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, email, full_name, avatar_url, created_at, is_active, deactivated_at, deactivated_by, branch_id")
+        .select("id, email, full_name, avatar_url, created_at, branch_id")
         .order("created_at", { ascending: false });
 
       if (profilesError) throw profilesError;
@@ -116,14 +116,16 @@ export default function UserManagement() {
             .from("user_roles")
             .select("role, custom_role_id")
             .eq("user_id", profile.id)
-            .single();
+            .maybeSingle();
 
           return {
             ...profile,
             role: roleData?.role || null,
             custom_role_id: roleData?.custom_role_id ?? null,
             last_sign_in_at: null,
-            is_active: profile.is_active ?? true,
+            is_active: true,
+            deactivated_at: null,
+            deactivated_by: null,
           };
         })
       );
@@ -141,14 +143,21 @@ export default function UserManagement() {
     setBranchesLoading(true);
     try {
       const { data, error } = await supabase
-        .from("branches")
+        .from("branches" as any)
         .select("id, name")
         .order("name");
-      if (error) throw error;
+      if (error) {
+        // Table may not exist in this project — silently fall back to empty list
+        if ((error as any).code === "PGRST205" || (error as any).code === "42P01") {
+          setBranches([]);
+          return;
+        }
+        throw error;
+      }
       setBranches((data ?? []) as Array<{ id: string; name: string }>);
     } catch (error: any) {
       console.error("Error fetching branches:", error);
-      toast.error("Failed to fetch branches");
+      setBranches([]);
     } finally {
       setBranchesLoading(false);
     }

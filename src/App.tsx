@@ -21,7 +21,7 @@ import { DocsLayout } from "@/components/layout/DocsLayout";
 import { permissionKey } from "@/lib/permissions";
 
 // Public pages
-import Index from "./pages/Index";
+// Index landing page removed — `/` now redirects to /login.
 import Pricing from "./pages/Pricing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";

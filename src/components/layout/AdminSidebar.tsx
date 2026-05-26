@@ -143,20 +143,23 @@ export function AdminSidebar() {
     >
       <div className="flex h-full flex-col">
         {/* Logo */}
-        <div className={cn("flex h-16 items-center border-b border-border flex-shrink-0", collapsed ? "justify-center px-0" : "gap-3 px-6")}>
+        <div className={cn("flex h-20 items-center border-b border-border flex-shrink-0", collapsed ? "justify-center px-0" : "gap-3 px-6")}>
           {collapsed ? (
             <Button variant="ghost" size="icon" className="h-9 w-9" onClick={toggle} aria-label="Expand sidebar">
               <PanelRight className="h-5 w-5" />
             </Button>
           ) : (
             <>
-              <Link to="/admin" className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive shadow-sm">
-                  <Shield className="h-5 w-5 text-destructive-foreground" />
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-semibold text-foreground">Admin Panel</span>
-                  <span className="text-xs text-muted-foreground truncate">{companyName}</span>
+              <Link to="/admin" className="flex min-w-0 flex-1 items-center gap-3 group">
+                <div className="flex min-w-0 flex-col gap-0.5 rounded-lg bg-white px-3 py-2 shadow-md transition-all duration-300 group-hover:shadow-xl">
+                  <img
+                    src={logoUrl}
+                    alt="MortgageAI"
+                    className="h-6 w-auto"
+                  />
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+                    Admin Panel
+                  </span>
                 </div>
               </Link>
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={toggle} aria-label="Collapse sidebar">

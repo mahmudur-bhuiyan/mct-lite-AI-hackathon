@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Bell, LogOut, User, Settings, Search, ExternalLink, FileText, Users, Calendar, Loader2, Shield, Info } from "lucide-react";
+import { Bell, LogOut, User, Settings, Search, ExternalLink, FileText, Users, Calendar, Loader2, Shield, Info, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { getInitials } from "@/lib/utils";
 import { useState } from "react";
@@ -27,6 +27,7 @@ import { useSemanticSearch } from "@/hooks/useSemanticSearch";
 import { RiskAlertsBell } from "@/components/loans/RiskAlertsBell";
 import { useAdminSidebar } from "@/contexts/AdminSidebarContext";
 import { useAppSidebar } from "@/contexts/AppSidebarContext";
+import { useTourContext } from "@/contexts/TourContext";
 
 const ABOUT_URL =
   import.meta.env.VITE_ABOUT_BRAND_URL ?? "https://collabai.software/";
@@ -83,6 +84,8 @@ export function TopNav() {
   const handleAboutClick = () => {
     window.open(ABOUT_URL, "_blank", "noopener,noreferrer");
   };
+
+  const tour = useTourContext();
 
   return (
     <header
@@ -261,7 +264,7 @@ export function TopNav() {
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-9 gap-2 pl-2 pr-3 hover:bg-muted">
+              <Button variant="ghost" className="h-9 gap-2 pl-2 pr-3 hover:bg-muted" data-tour="profile">
                 <Avatar className="h-7 w-7">
                   <AvatarImage src={profile?.avatar_url || undefined} />
                   <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
@@ -306,6 +309,14 @@ export function TopNav() {
                   </DropdownMenuItem>
                 </>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={tour.startTour}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <MapPin className="h-4 w-4" />
+                Take Tour
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleAboutClick}

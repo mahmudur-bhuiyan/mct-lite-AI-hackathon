@@ -5,6 +5,7 @@ import OnboardingWizard from "@/components/OnboardingWizard";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { AppSidebarProvider, useAppSidebar } from "@/contexts/AppSidebarContext";
 import { cn } from "@/lib/utils";
+import { ContactCollabAIButton } from "@/components/ContactCollabAIButton";
 
 function isChatRoute(pathname: string) {
   return pathname === "/ai" || pathname === "/ai/chat" || /^\/ai\/agents\/[^/]+\/chat$/.test(pathname);
@@ -46,6 +47,8 @@ function DashboardLayoutContent() {
           onComplete={completeOnboarding}
         />
       )}
+
+      <ContactCollabAIButton />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { AdminSidebarProvider, useAdminSidebar } from "@/contexts/AdminSidebarContext";
 import { cn } from "@/lib/utils";
+import { ContactCollabAIButton } from "@/components/ContactCollabAIButton";
 
 interface AdminLayoutProps {
   children?: ReactNode;
@@ -97,6 +98,7 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
       >
         {children || <Outlet />}
       </main>
+      <ContactCollabAIButton />
     </div>
   );
 }

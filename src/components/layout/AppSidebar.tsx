@@ -354,18 +354,14 @@ export function AppSidebar() {
                 to="/dashboard"
                 className="flex min-w-0 flex-1 items-center gap-3 group"
               >
-                <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sidebar-primary to-emerald-500 shadow-lg transition-all duration-300 group-hover:shadow-xl group-hover:scale-105">
-                  <Brain className="h-6 w-6 text-white" />
-                  <div className="absolute -top-1 -right-1">
-                    <Sparkles className="h-3 w-3 text-amber-400" />
-                  </div>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-base font-bold text-white tracking-tight">
-                    MCT Lite
-                  </span>
-                  <span className="text-xs text-white/70 font-medium">
-                    {companyName || "Mortgage Control Tower Lite"}
+                <div className="flex min-w-0 flex-col gap-0.5 rounded-lg bg-white/95 px-3 py-2 shadow-md transition-all duration-300 group-hover:shadow-xl">
+                  <img
+                    src={logoUrl}
+                    alt="MortgageAI"
+                    className="h-6 w-auto"
+                  />
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+                    Control Tower
                   </span>
                 </div>
               </Link>

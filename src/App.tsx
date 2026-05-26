@@ -21,7 +21,7 @@ import { DocsLayout } from "@/components/layout/DocsLayout";
 import { permissionKey } from "@/lib/permissions";
 
 // Public pages
-import Index from "./pages/Index";
+// Index landing page removed — `/` now redirects to /login.
 import Pricing from "./pages/Pricing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -115,8 +115,8 @@ const App = () => (
           <BrowserRouter>
           <Routes>
             {/* Public routes */}
-            <Route path="/" element={<Index />} />
-            <Route path="/home" element={<Index />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/home" element={<Navigate to="/login" replace />} />
             <Route path="/pricing-public" element={<Navigate to="/" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />

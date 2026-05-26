@@ -1,12 +1,12 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Brain } from "lucide-react";
+import { Loader2, Brain, ShieldCheck } from "lucide-react";
 
 function routeForRole(role: string | undefined): string {
   if (role === "admin" || role === "moderator") return "/admin";
@@ -19,8 +19,22 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [bootstrapOpen, setBootstrapOpen] = useState<boolean | null>(null);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("bootstrap-first-admin", {
+          method: "GET",
+        });
+        if (!error) setBootstrapOpen(Boolean((data as any)?.open));
+      } catch {
+        // Non-fatal — login still works even if bootstrap check fails
+      }
+    })();
+  }, []);
 
   const resolveRoleAndNavigate = async () => {
     const { data: userData } = await supabase.auth.getUser();
@@ -60,6 +74,21 @@ export default function Login() {
           </div>
           <h1 className="text-xl font-semibold text-foreground">MCT Lite</h1>
         </div>
+
+        {bootstrapOpen === true && (
+          <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <p className="font-medium text-foreground">No admin account yet</p>
+              <p className="text-muted-foreground">
+                This workspace has no administrator.{" "}
+                <Link to="/signup" className="font-medium text-primary hover:underline">
+                  Set up the first admin account →
+                </Link>
+              </p>
+            </div>
+          </div>
+        )}
 
         <Card className="shadow-premium">
           <CardHeader className="space-y-1 pb-4">
@@ -112,7 +141,16 @@ export default function Login() {
                 )}
               </Button>
               <p className="text-center text-xs text-muted-foreground">
-                Need access? Contact your administrator.
+                {bootstrapOpen === true ? (
+                  <>
+                    First time?{" "}
+                    <Link to="/signup" className="font-medium text-primary hover:underline">
+                      Create the admin account
+                    </Link>
+                  </>
+                ) : (
+                  "Need access? Contact your administrator."
+                )}
               </p>
             </CardFooter>
           </form>

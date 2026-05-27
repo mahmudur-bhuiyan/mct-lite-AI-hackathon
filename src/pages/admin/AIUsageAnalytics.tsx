@@ -199,15 +199,45 @@ function parseUsage(run: RunRow): UsageEntry {
 
   const model = run.model_used || "unknown";
   const normalizedModel = model.toLowerCase();
+  // Pricing per 1k tokens. Covers Lovable AI Gateway (slash-prefixed) + direct providers.
   const pricingByModel: Array<{ key: string; inputPer1k: number; outputPer1k: number }> = [
+    // OpenAI
+    { key: "gpt-5-nano", inputPer1k: 0.00005, outputPer1k: 0.0004 },
+    { key: "gpt-5-mini", inputPer1k: 0.00025, outputPer1k: 0.002 },
+    { key: "gpt-5", inputPer1k: 0.00125, outputPer1k: 0.01 },
+    { key: "gpt-4.1-mini", inputPer1k: 0.0004, outputPer1k: 0.0016 },
     { key: "gpt-4.1", inputPer1k: 0.002, outputPer1k: 0.008 },
     { key: "gpt-4o-mini", inputPer1k: 0.00015, outputPer1k: 0.0006 },
     { key: "gpt-4o", inputPer1k: 0.0025, outputPer1k: 0.01 },
     { key: "gpt-4", inputPer1k: 0.03, outputPer1k: 0.06 },
     { key: "gpt-3.5", inputPer1k: 0.0005, outputPer1k: 0.0015 },
+    // Google Gemini (Lovable AI uses google/gemini-*)
+    { key: "gemini-3-pro", inputPer1k: 0.00125, outputPer1k: 0.01 },
+    { key: "gemini-3-flash", inputPer1k: 0.0001, outputPer1k: 0.0004 },
+    { key: "gemini-3.1-flash-lite", inputPer1k: 0.00005, outputPer1k: 0.0002 },
+    { key: "gemini-3.1-flash", inputPer1k: 0.0001, outputPer1k: 0.0004 },
+    { key: "gemini-3.5-flash", inputPer1k: 0.00015, outputPer1k: 0.0006 },
+    { key: "gemini-2.5-pro", inputPer1k: 0.00125, outputPer1k: 0.01 },
+    { key: "gemini-2.5-flash-lite", inputPer1k: 0.00005, outputPer1k: 0.0002 },
+    { key: "gemini-2.5-flash", inputPer1k: 0.000075, outputPer1k: 0.0003 },
+    { key: "gemini-2.0-flash-lite", inputPer1k: 0.000075, outputPer1k: 0.0003 },
+    { key: "gemini-2.0-flash", inputPer1k: 0.0001, outputPer1k: 0.0004 },
+    { key: "gemini-1.5-pro", inputPer1k: 0.00125, outputPer1k: 0.005 },
+    { key: "gemini", inputPer1k: 0.0001, outputPer1k: 0.0004 },
+    // Anthropic
+    { key: "claude-3-opus", inputPer1k: 0.015, outputPer1k: 0.075 },
+    { key: "claude-3-5-sonnet", inputPer1k: 0.003, outputPer1k: 0.015 },
+    { key: "claude-3-5-haiku", inputPer1k: 0.0008, outputPer1k: 0.004 },
+    { key: "claude", inputPer1k: 0.003, outputPer1k: 0.015 },
+    // Perplexity Sonar
+    { key: "sonar-huge", inputPer1k: 0.005, outputPer1k: 0.005 },
+    { key: "sonar-large", inputPer1k: 0.001, outputPer1k: 0.001 },
+    { key: "sonar-small", inputPer1k: 0.0002, outputPer1k: 0.0002 },
+    { key: "sonar", inputPer1k: 0.0002, outputPer1k: 0.0002 },
   ];
   const matchedPricing =
-    pricingByModel.find((p) => normalizedModel.includes(p.key)) ?? pricingByModel[1];
+    pricingByModel.find((p) => normalizedModel.includes(p.key)) ??
+    { key: "default", inputPer1k: 0.00015, outputPer1k: 0.0006 };
 
   const effectivePromptTokens = promptTokens > 0 ? promptTokens : estimatedPromptTokensFromText;
   const effectiveCompletionTokens =
@@ -222,11 +252,23 @@ function parseUsage(run: RunRow): UsageEntry {
     : estimatedCostFromTotalOnly;
   const isEstimatedCost = explicitCost < 0;
   const cost = explicitCost >= 0 ? explicitCost : estimatedCost;
-  const inferredProvider =
-    run.provider_used ||
-    (normalizedModel.includes("gpt") || normalizedModel.includes("o1") || normalizedModel.includes("o3")
-      ? "openai"
-      : "unknown");
+
+  // Detect provider. Lovable AI Gateway models look like "google/gemini-*", "openai/gpt-*", etc.
+  // Treat slash-prefixed models as Lovable AI; otherwise infer from model name.
+  function inferProvider(): string {
+    if (run.provider_used) return run.provider_used;
+    if (model.includes("/")) return "lovable";
+    if (
+      normalizedModel.includes("gpt") ||
+      normalizedModel.startsWith("o1") ||
+      normalizedModel.startsWith("o3")
+    ) return "openai";
+    if (normalizedModel.includes("gemini")) return "google";
+    if (normalizedModel.includes("claude")) return "anthropic";
+    if (normalizedModel.includes("sonar") || normalizedModel.includes("llama")) return "perplexity";
+    return "unknown";
+  }
+  const inferredProvider = inferProvider();
 
   return {
     id: run.id,

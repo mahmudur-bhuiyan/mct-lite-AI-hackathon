@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ShieldCheck, Lock } from "lucide-react";
+import { Loader2, ShieldCheck, Lock, ExternalLink } from "lucide-react";
 import logoUrl from "@/assets/mortgageai-logo.svg";
 
 export default function Signup() {
@@ -98,10 +98,10 @@ export default function Signup() {
             </>
           ) : (
             <>
-              <CardHeader className="space-y-1 pb-4">
-                <div className="flex items-center gap-2">
+              <CardHeader className="space-y-1 pb-4 text-center">
+                <div className="flex items-center justify-center gap-2">
                   <ShieldCheck className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-xl font-semibold">Create workspace admin</CardTitle>
+                  <CardTitle className="text-2xl font-bold">Create workspace admin</CardTitle>
                 </div>
                 <CardDescription>
                   You're the first user — this account will become the workspace administrator.
@@ -109,6 +109,24 @@ export default function Signup() {
               </CardHeader>
               <form onSubmit={handleSubmit}>
                 <CardContent className="space-y-4">
+                  {/* Live demo button */}
+                  <a
+                    href="https://mortgagedemo.collabai.software/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Try the live demo
+                  </a>
+
+                  {/* OR divider */}
+                  <div className="relative flex items-center gap-3">
+                    <div className="flex-1 border-t border-border" />
+                    <span className="text-xs text-muted-foreground">OR</span>
+                    <div className="flex-1 border-t border-border" />
+                  </div>
+
                   {error && (
                     <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
                       {error}

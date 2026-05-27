@@ -292,7 +292,7 @@ export default function AIUsageAnalytics() {
       .channel("ai-usage-analytics-runs")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "ai_agent_runs" },
+        { event: "*", schema: "public", table: "agent_messages" },
         () => {
           queryClient.invalidateQueries({ queryKey: ["ai-usage-analytics"] });
         }
@@ -314,21 +314,33 @@ export default function AIUsageAnalytics() {
     queryFn: async () => {
       const rangeStart = getRangeStart(dateRange);
 
-      let runsQuery = supabase
-        .from("ai_agent_runs")
-        .select("id, created_at, user_id, provider_used, model_used, input, output, context, token_metrics, metadata")
+      // Source AI usage from agent_messages (assistant turns include model + token_metrics)
+      // joined to agent_conversations for user_id. Covers Lovable AI Gateway and every
+      // other LLM provider that writes through run-ai-agent.
+      const { data: messages, error: messagesError } = await supabase
+        .from("agent_messages")
+        .select("id, created_at, role, content, model_used, token_metrics, conversation_id, agent_conversations!inner(user_id)")
+        .eq("role", "assistant")
         .gte("created_at", rangeStart)
         .order("created_at", { ascending: false })
-        .limit(250);
-      if (hideDemo) {
-        runsQuery = runsQuery.eq("is_demo", false);
-      }
+        .limit(500);
 
-      const { data: runs, error: runsError } = await runsQuery;
+      if (messagesError) throw messagesError;
 
-      if (runsError) throw runsError;
+      const runs: RunRow[] = (messages ?? []).map((m: any) => ({
+        id: m.id,
+        created_at: m.created_at,
+        user_id: m.agent_conversations?.user_id ?? null,
+        provider_used: null,
+        model_used: m.model_used ?? null,
+        input: null,
+        output: typeof m.content === "string" ? m.content : null,
+        context: null,
+        token_metrics: m.token_metrics ?? null,
+        metadata: null,
+      }));
 
-      const normalizedRuns = ((runs ?? []) as RunRow[]).map(parseUsage);
+      const normalizedRuns = runs.map(parseUsage);
       const uniqueUserIds = Array.from(
         new Set(normalizedRuns.map((run) => run.userId).filter((id): id is string => !!id))
       );

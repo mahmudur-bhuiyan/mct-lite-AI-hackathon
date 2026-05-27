@@ -124,10 +124,61 @@ export const userTourSteps: Step[] = [
   profileStep,
 ];
 
-export type TourVariant = "admin" | "loan_officer" | "user";
+// ---------------------------------------------------------------------------
+// Admin Panel tour (for /admin/* routes — targets AdminSidebar sections)
+// ---------------------------------------------------------------------------
+
+const adminOverviewStep: Step = {
+  target: '[data-tour="admin-overview"]',
+  title: "Admin Overview",
+  content:
+    "Your admin command center. Monitor system health, active users, and platform activity.",
+  disableBeacon: true,
+  placement: "right",
+};
+
+const adminUsersStep: Step = {
+  target: '[data-tour="admin-users"]',
+  title: "Users & Access",
+  content:
+    "Manage user accounts, assign roles, and control who can access what across the platform.",
+  disableBeacon: true,
+  placement: "right",
+};
+
+const adminAIStep: Step = {
+  target: '[data-tour="admin-ai"]',
+  title: "AI Configuration",
+  content:
+    "Configure LLM providers, manage AI agents, and review AI usage analytics.",
+  disableBeacon: true,
+  placement: "right",
+};
+
+const adminSystemStep: Step = {
+  target: '[data-tour="admin-system"]',
+  title: "System Settings",
+  content:
+    "Control modules, integrations, activity logs, and knowledge categories from here.",
+  disableBeacon: true,
+  placement: "right",
+};
+
+/** Admin Panel tour — targets AdminSidebar section groups */
+export const adminPanelTourSteps: Step[] = [
+  adminOverviewStep,
+  adminUsersStep,
+  adminAIStep,
+  adminSystemStep,
+  profileStep,
+];
+
+export type TourVariant = "admin" | "admin_panel" | "loan_officer" | "user";
 
 export function getTourSteps(variant: TourVariant): Step[] {
   switch (variant) {
+    case "admin_panel":
+      return adminPanelTourSteps;
     case "admin":
       return adminTourSteps;
     case "loan_officer":

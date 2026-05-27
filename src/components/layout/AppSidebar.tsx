@@ -154,6 +154,19 @@ export function AppSidebar() {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   const isAdmin = profile?.role === "admin" || profile?.role === "moderator";
+  /**
+   * Admin / moderator using the main app shell (/dashboard): show operational
+   * items only — no AI Chat or Action Items (those live in the admin panel).
+   */
+  const adminNavAllow = new Set<string>([
+    "/dashboard",
+    "/loans",
+    "/borrowers",
+    "/tasks",
+    "/knowledge",
+    "/notifications",
+    "/agents",
+  ]);
   /** Loan officer / branch manager (not platform admin): show a short nav set only. */
   const normalizedRoles = getNormalizedUserRoles(profile);
   const isLoanOfficerLiteNav =
@@ -185,6 +198,7 @@ export function AppSidebar() {
   const filterItems = (items: SidebarItem[]) => {
     return items.filter((item) => {
       if (item.adminOnly && !isAdmin) return false;
+      if (isAdmin && !adminNavAllow.has(item.href)) return false;
       if (isLoanOfficerLiteNav && !loanOfficerNavAllow.has(item.href)) return false;
       if (isUserRoleLiteNav && !userRoleNavAllow.has(item.href)) return false;
       if (item.href === "/calendar" && !canAccessOperationsCalendar(profile)) return false;

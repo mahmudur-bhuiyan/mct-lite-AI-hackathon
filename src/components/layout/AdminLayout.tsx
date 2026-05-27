@@ -103,7 +103,7 @@ function AdminLayoutContent({ children }: AdminLayoutProps) {
         >
           {children || <Outlet />}
         </main>
-        <AppTour tour={tour} variant="admin" />
+        <AppTour tour={tour} variant="admin_panel" />
         <ContactCollabAIButton />
       </div>
     </TourProvider>

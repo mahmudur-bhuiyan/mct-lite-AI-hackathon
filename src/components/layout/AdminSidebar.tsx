@@ -61,17 +61,21 @@ interface SidebarItem {
 interface SidebarGroup {
   title: string;
   items: SidebarItem[];
+  /** data-tour anchor id for the guided product tour (placed on the section trigger). */
+  tourId?: string;
 }
 
 const sidebarGroups: SidebarGroup[] = [
   {
     title: "DASHBOARD",
+    tourId: "admin-overview",
     items: [
       { title: "Overview", href: "/admin", icon: LayoutDashboard },
     ],
   },
   {
     title: "USERS & ACCESS",
+    tourId: "admin-users",
     items: [
       { title: "User Management", href: "/admin/users", icon: Users },
       { title: "Role Management", href: "/admin/roles", icon: Shield },
@@ -79,6 +83,7 @@ const sidebarGroups: SidebarGroup[] = [
   },
   {
     title: "AI",
+    tourId: "admin-ai",
     items: [
       { title: "LLM Config", href: "/admin/ai/llm-config", icon: Brain },
       { title: "AI Agents", href: "/admin/agents", icon: Bot },
@@ -87,6 +92,7 @@ const sidebarGroups: SidebarGroup[] = [
   },
   {
     title: "SYSTEM",
+    tourId: "admin-system",
     items: [
       { title: "Module Management", href: "/admin/modules", icon: Layers },
       { title: "System Settings", href: "/admin/settings", icon: Settings },
@@ -222,7 +228,10 @@ export function AdminSidebar() {
                   open={isExpanded}
                   onOpenChange={() => toggleGroup(group.title)}
                 >
-                  <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors">
+                  <CollapsibleTrigger
+                    data-tour={group.tourId}
+                    className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                  >
                     <span>{group.title}</span>
                     <ChevronDown
                       className={cn(

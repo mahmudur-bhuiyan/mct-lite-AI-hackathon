@@ -30,7 +30,13 @@ import {
   Inbox,
   LineChart,
   MessageSquare,
+  Info,
+  ExternalLink,
 } from "lucide-react";
+
+const ABOUT_URL =
+  (import.meta.env.VITE_ABOUT_BRAND_URL as string | undefined) ??
+  "https://collabai.software/";
 import { useModuleSettings, isModuleEnabled } from "@/hooks/useModuleSettings";
 import {
   useAgentEnabled,
@@ -434,11 +440,37 @@ export function AppSidebar() {
           )}
         </nav>
 
-        {/* Footer with AI Branding */}
+        {/* Footer with About Us + AI Branding */}
         <div className={cn(
-          "border-t border-sidebar-border p-4 transition-[padding] duration-200",
-          collapsed && "p-2"
+          "border-t border-sidebar-border p-4 transition-[padding] duration-200 space-y-3",
+          collapsed && "p-2 space-y-2"
         )}>
+          {/* About Us */}
+          {collapsed ? (
+            <div className="flex justify-center">
+              <a
+                href={ABOUT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="About Us"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+              >
+                <Info className="h-4 w-4" />
+              </a>
+            </div>
+          ) : (
+            <a
+              href={ABOUT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              <Info className="h-4 w-4 shrink-0" />
+              <span className="flex-1">About Us</span>
+              <ExternalLink className="h-3 w-3 opacity-60" />
+            </a>
+          )}
+
           <div className={cn(
             "rounded-xl bg-gradient-to-br from-sidebar-accent to-sidebar-background border border-sidebar-border",
             collapsed ? "flex justify-center p-2" : "px-4 py-3"

@@ -43,7 +43,13 @@ import {
   FolderTree,
   Calendar,
   BookOpen,
+  Info,
+  ExternalLink,
 } from "lucide-react";
+
+const ABOUT_URL =
+  (import.meta.env.VITE_ABOUT_BRAND_URL as string | undefined) ??
+  "https://collabai.software/";
 
 interface SidebarItem {
   title: string;
@@ -149,7 +155,7 @@ export function AdminSidebar() {
           ) : (
             <>
               <Link to="/admin" className="flex min-w-0 flex-1 items-center gap-3 group">
-                <div className="flex min-w-0 flex-col gap-0.5 rounded-lg bg-white px-3 py-2 shadow-md transition-all duration-300 group-hover:shadow-xl">
+                <div className="flex min-w-0 flex-col gap-0.5 rounded-lg px-3 py-2">
                   <img
                     src={logoUrl}
                     alt="MortgageAI"
@@ -270,8 +276,33 @@ export function AdminSidebar() {
           )}
         </nav>
 
-        {/* Footer - Back to Dashboard */}
-        <div className="border-t border-border p-4">
+        {/* Footer - About Us + Back to Dashboard */}
+        <div className="border-t border-border p-4 space-y-2">
+          {/* About Us */}
+          {collapsed ? (
+            <a
+              href={ABOUT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground mx-auto transition-colors"
+              title="About Us"
+            >
+              <Info className="h-4 w-4" />
+            </a>
+          ) : (
+            <a
+              href={ABOUT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Info className="h-4 w-4 shrink-0" />
+              <span className="flex-1">About Us</span>
+              <ExternalLink className="h-3 w-3 text-muted-foreground/60" />
+            </a>
+          )}
+
+          {/* Back to Dashboard */}
           {collapsed ? (
             <Link
               to="/dashboard"

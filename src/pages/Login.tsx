@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck, ExternalLink } from "lucide-react";
 import logoUrl from "@/assets/mortgageai-logo.svg";
 
 function routeForRole(role: string | undefined): string {
@@ -94,12 +94,35 @@ export default function Login() {
         )}
 
         <Card className="shadow-premium">
-          <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl font-semibold">Welcome back</CardTitle>
+          <CardHeader className="space-y-1 pb-4 text-center">
+            <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
             <CardDescription>Sign in to your account to continue</CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
+              {/* Info banner */}
+              <div className="rounded-lg bg-muted/60 px-4 py-2.5 text-center text-xs text-muted-foreground">
+                New users are added by an administrator from the admin panel.
+              </div>
+
+              {/* Live demo button */}
+              <a
+                href="https://mortgagedemo.collabai.software/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Try the live demo
+              </a>
+
+              {/* OR divider */}
+              <div className="relative flex items-center gap-3">
+                <div className="flex-1 border-t border-border" />
+                <span className="text-xs text-muted-foreground">OR</span>
+                <div className="flex-1 border-t border-border" />
+              </div>
+
               {error && (
                 <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">
                   {error}

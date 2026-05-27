@@ -161,7 +161,7 @@ export function AdminSidebar() {
           ) : (
             <>
               <Link to="/admin" className="flex min-w-0 flex-1 items-center gap-3 group">
-                <div className="flex min-w-0 flex-col gap-0.5 rounded-lg px-3 py-2">
+                <div className="flex min-w-0 flex-col gap-0.5 px-3 py-2">
                   <img
                     src={logoUrl}
                     alt="MortgageAI"

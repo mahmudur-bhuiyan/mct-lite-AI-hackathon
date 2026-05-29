@@ -370,7 +370,10 @@ export default function UserManagement() {
     return app?.label ?? user.role ?? "user";
   };
 
-  const filteredUsers = users.filter(
+  // Hide legacy "user"-role accounts from the admin list — module not in use.
+  const visibleUsers = users.filter((u) => u.role !== "user");
+
+  const filteredUsers = visibleUsers.filter(
     (user) =>
       user.email.toLowerCase().includes(search.toLowerCase()) ||
       user.full_name?.toLowerCase().includes(search.toLowerCase())

@@ -33,15 +33,14 @@ import { useRoles } from "@/hooks/useRoles";
 import { normalizeRoleString } from "@/lib/agentRoles";
 
 const APP_ROLES = [
-  { value: "user" as const, label: "User" },
   { value: "loan_officer" as const, label: "Loan Officer" },
   { value: "moderator" as const, label: "Manager" },
   { value: "admin" as const, label: "Admin" },
 ] as const;
 
 const INVITE_ROLES = [
-  { value: "user", label: "User" },
   { value: "loan_officer", label: "Loan Officer" },
+  { value: "moderator", label: "Manager" },
   { value: "admin", label: "Admin" },
 ] as const;
 

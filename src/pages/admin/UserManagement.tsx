@@ -33,15 +33,14 @@ import { useRoles } from "@/hooks/useRoles";
 import { normalizeRoleString } from "@/lib/agentRoles";
 
 const APP_ROLES = [
-  { value: "user" as const, label: "User" },
   { value: "loan_officer" as const, label: "Loan Officer" },
   { value: "moderator" as const, label: "Manager" },
   { value: "admin" as const, label: "Admin" },
 ] as const;
 
 const INVITE_ROLES = [
-  { value: "user", label: "User" },
   { value: "loan_officer", label: "Loan Officer" },
+  { value: "moderator", label: "Manager" },
   { value: "admin", label: "Admin" },
 ] as const;
 
@@ -74,7 +73,7 @@ export default function UserManagement() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteFullName, setInviteFullName] = useState("");
-  const [inviteRole, setInviteRole] = useState("user");
+  const [inviteRole, setInviteRole] = useState("loan_officer");
   const [tempPasswordInfo, setTempPasswordInfo] = useState<{ email: string; password: string; emailSent: boolean } | null>(null);
   
   const [editRole, setEditRole] = useState("");
@@ -179,7 +178,7 @@ export default function UserManagement() {
       setInviteDialogOpen(false);
       setInviteEmail("");
       setInviteFullName("");
-      setInviteRole("user");
+      setInviteRole("loan_officer");
       setTempPasswordInfo({
         email: result.email,
         password: result.temp_password,
@@ -371,7 +370,10 @@ export default function UserManagement() {
     return app?.label ?? user.role ?? "user";
   };
 
-  const filteredUsers = users.filter(
+  // Hide legacy "user"-role accounts from the admin list — module not in use.
+  const visibleUsers = users.filter((u) => u.role !== "user");
+
+  const filteredUsers = visibleUsers.filter(
     (user) =>
       user.email.toLowerCase().includes(search.toLowerCase()) ||
       user.full_name?.toLowerCase().includes(search.toLowerCase())
@@ -420,7 +422,7 @@ export default function UserManagement() {
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{users.length}</div>
+            <div className="text-2xl font-bold">{visibleUsers.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -429,7 +431,7 @@ export default function UserManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {users.filter((u) => u.is_active).length}
+              {visibleUsers.filter((u) => u.is_active).length}
             </div>
           </CardContent>
         </Card>
@@ -439,7 +441,7 @@ export default function UserManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {users.filter((u) => u.role === "admin").length}
+              {visibleUsers.filter((u) => u.role === "admin").length}
             </div>
           </CardContent>
         </Card>

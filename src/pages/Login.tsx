@@ -10,9 +10,10 @@ import { Loader2, ShieldCheck, ExternalLink } from "lucide-react";
 import logoUrl from "@/assets/mortgageai-logo.svg";
 
 function routeForRole(role: string | undefined): string {
-  if (role === "admin" || role === "moderator") return "/admin";
-  if (role === "loan_officer") return "/dashboard";
-  return "/knowledge";
+  if (role === "admin") return "/admin";
+  // Manager (moderator) and Loan Officer share the same post-login experience.
+  // The legacy "user" role is hidden from the product and also lands on /dashboard.
+  return "/dashboard";
 }
 
 export default function Login() {

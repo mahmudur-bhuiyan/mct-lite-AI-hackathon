@@ -178,7 +178,7 @@ export default function UserManagement() {
       setInviteDialogOpen(false);
       setInviteEmail("");
       setInviteFullName("");
-      setInviteRole("user");
+      setInviteRole("loan_officer");
       setTempPasswordInfo({
         email: result.email,
         password: result.temp_password,

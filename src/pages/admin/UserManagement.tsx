@@ -431,7 +431,7 @@ export default function UserManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {users.filter((u) => u.is_active).length}
+              {visibleUsers.filter((u) => u.is_active).length}
             </div>
           </CardContent>
         </Card>

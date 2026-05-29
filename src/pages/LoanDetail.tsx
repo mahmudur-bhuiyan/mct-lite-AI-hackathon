@@ -35,6 +35,7 @@ import { useEnabledAgentBySlug } from "@/hooks/useAIAgents";
 import { isAgentAllowedForUser } from "@/lib/agentRoles";
 import { STATUS_LABELS } from "@/lib/loan-pipeline-stages";
 import { supabase } from "@/lib/supabase";
+import { useModuleSettings, isModuleEnabled } from "@/hooks/useModuleSettings";
 import { CreditReportSection } from "@/components/data-foundation/CreditReportSection";
 import { EmploymentVerificationSection } from "@/components/data-foundation/EmploymentVerificationSection";
 import { PropertyValuationSection } from "@/components/data-foundation/PropertyValuationSection";
@@ -78,6 +79,18 @@ export default function LoanDetail() {
   const { needsAttention } = useLoanCoachingAgent(id);
   const [coachingOpen, setCoachingOpen] = useState(false);
   const [branchName, setBranchName] = useState<string | null>(null);
+
+  // MCT Lite: gate phase-specific cards behind enabled modules so we don't
+  // hit tables that were intentionally not migrated into the Lite schema.
+  const { data: modules } = useModuleSettings();
+  const pricingOn = isModuleEnabled(modules, "pricing");
+  const complianceOn = isModuleEnabled(modules, "compliance");
+  const docsOn = isModuleEnabled(modules, "document_review");
+  const underwritingOn = isModuleEnabled(modules, "underwriting_queue");
+  const commsOn = isModuleEnabled(modules, "communication_center");
+  const phase5On = pricingOn && complianceOn; // closing/digital execution
+  const workflowOn = underwritingOn || complianceOn; // SLA/milestones/conditions/timeline
+
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -282,10 +295,11 @@ export default function LoanDetail() {
       />
 
       {/* ── Rate Intelligence ──────────────────────────────────────── */}
-      {showRateAlert && <RateAlertCard loanId={loan.id} />}
+      {pricingOn && showRateAlert && <RateAlertCard loanId={loan.id} />}
+
 
       {/* ── Data Foundation (Credit, Employment, Property) ──────── */}
-      {loan.borrower_id && (
+      {underwritingOn && loan.borrower_id && (
         <>
           <div className="flex items-center gap-2 border-b pb-2">
             <Database className="h-4 w-4 text-muted-foreground" />
@@ -320,7 +334,7 @@ export default function LoanDetail() {
       )}
 
       {/* ── Application Data (1003) ─────────────────────────────────── */}
-      {loan.borrower_id && (
+      {underwritingOn && loan.borrower_id && (
         <>
           <div className="flex items-center gap-2 border-b pb-2">
             <ClipboardList className="h-4 w-4 text-muted-foreground" />
@@ -352,112 +366,142 @@ export default function LoanDetail() {
       )}
 
       {/* ── Documents ─────────────────────────────────────────────── */}
-      <div id="loan-documents" className="flex items-center gap-2 border-b pb-2 scroll-mt-24">
-        <FolderOpen className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Documents
-        </h2>
-      </div>
+      {docsOn && (
+        <>
+          <div id="loan-documents" className="flex items-center gap-2 border-b pb-2 scroll-mt-24">
+            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Documents
+            </h2>
+          </div>
 
-      <DocumentChecklist loanId={loan.id} programId={loan.program_id} />
-      <LoanDocumentsPanel loanId={loan.id} borrowerId={loan.borrower_id ?? undefined} />
+          <DocumentChecklist loanId={loan.id} programId={loan.program_id} />
+          <LoanDocumentsPanel loanId={loan.id} borrowerId={loan.borrower_id ?? undefined} />
+        </>
+      )}
 
       {/* ── Eligibility ───────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 border-b pb-2">
-        <Zap className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Eligibility
-        </h2>
-      </div>
-      <EligibilityResults loanId={loan.id} />
+      {complianceOn && (
+        <>
+          <div className="flex items-center gap-2 border-b pb-2">
+            <Zap className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Eligibility
+            </h2>
+          </div>
+          <EligibilityResults loanId={loan.id} />
+        </>
+      )}
+
 
       {/* ── Phase 3: Pricing & compliance (fees, rules, QC, AUS) ───── */}
-      <div className="flex items-center gap-2 border-b pb-2">
-        <Gauge className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Pricing, fees &amp; compliance
-        </h2>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <LoanClosingCostsCard loanId={loan.id} loanAmount={loan.loan_amount != null ? Number(loan.loan_amount) : null} />
-        <LoanComplianceRunCard loanId={loan.id} />
-        <LoanQcChecklistCard loanId={loan.id} canEdit={canUpdate} />
-        <LoanAusCard loanId={loan.id} />
-        <LoanHmdaCard loanId={loan.id} />
-        <LoanBestExecutionCard loanId={loan.id} />
-        <LoanRateLockCard loanId={loan.id} />
-        <LoanInvestorSubmissionCard loanId={loan.id} />
-      </div>
+      {(pricingOn || complianceOn) && (
+        <>
+          <div className="flex items-center gap-2 border-b pb-2">
+            <Gauge className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Pricing, fees &amp; compliance
+            </h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {pricingOn && (
+              <LoanClosingCostsCard loanId={loan.id} loanAmount={loan.loan_amount != null ? Number(loan.loan_amount) : null} />
+            )}
+            {complianceOn && <LoanComplianceRunCard loanId={loan.id} />}
+            {complianceOn && <LoanQcChecklistCard loanId={loan.id} canEdit={canUpdate} />}
+            {complianceOn && <LoanAusCard loanId={loan.id} />}
+            {complianceOn && <LoanHmdaCard loanId={loan.id} />}
+            {pricingOn && <LoanBestExecutionCard loanId={loan.id} />}
+            {pricingOn && <LoanRateLockCard loanId={loan.id} />}
+            {pricingOn && <LoanInvestorSubmissionCard loanId={loan.id} />}
+          </div>
+        </>
+      )}
 
       {/* ── Phase 5: Closing & digital execution ───────────────────── */}
-      <div className="flex items-center gap-2 border-b pb-2">
-        <FileSignature className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Closing &amp; digital execution
-        </h2>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        <LoanSettlementOrdersCard loanId={loan.id} />
-        <LoanAppraisalCard loanId={loan.id} />
-        <LoanRonCard loanId={loan.id} />
-        <LoanDigitalClosingCard loanId={loan.id} />
-        <LoanAdverseActionCard
-          loanId={loan.id}
-          loanNumber={loan.loan_number ?? ""}
-          applicantLabel={borrowerName !== "—" ? borrowerName : "Applicant"}
-        />
-      </div>
+      {phase5On && (
+        <>
+          <div className="flex items-center gap-2 border-b pb-2">
+            <FileSignature className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Closing &amp; digital execution
+            </h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <LoanSettlementOrdersCard loanId={loan.id} />
+            <LoanAppraisalCard loanId={loan.id} />
+            <LoanRonCard loanId={loan.id} />
+            <LoanDigitalClosingCard loanId={loan.id} />
+            <LoanAdverseActionCard
+              loanId={loan.id}
+              loanNumber={loan.loan_number ?? ""}
+              applicantLabel={borrowerName !== "—" ? borrowerName : "Applicant"}
+            />
+          </div>
+        </>
+      )}
+
 
       {/* ── Workflow Management ─────────────────────────────────────── */}
-      <div className="flex items-center gap-2 border-b pb-2">
-        <Activity className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Workflow Management
-        </h2>
-      </div>
+      {workflowOn && (
+        <>
+          <div className="flex items-center gap-2 border-b pb-2">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Workflow Management
+            </h2>
+          </div>
 
-      <SLAStatusCard loanId={loan.id} loanStatus={loan.status} />
+          <SLAStatusCard loanId={loan.id} loanStatus={loan.status} />
 
-      <LoanBorrowerPortalCard loanId={loan.id} borrowerEmail={borrower?.email} />
+          <LoanBorrowerPortalCard loanId={loan.id} borrowerEmail={borrower?.email} />
 
-      <MilestoneTracker loanId={loan.id} loanStatus={loan.status} />
+          <MilestoneTracker loanId={loan.id} loanStatus={loan.status} />
 
-      <ConditionTracker loanId={loan.id} loanStatus={loan.status} />
+          <ConditionTracker loanId={loan.id} loanStatus={loan.status} />
 
-      {showPrecheck && (
-        <UnderwritingScorecard
-          loanId={loan.id}
-          loanNumber={loan.loan_number}
-          borrowerName={borrowerName !== "—" ? borrowerName : undefined}
-        />
+          {showPrecheck && (
+            <UnderwritingScorecard
+              loanId={loan.id}
+              loanNumber={loan.loan_number}
+              borrowerName={borrowerName !== "—" ? borrowerName : undefined}
+            />
+          )}
+
+          {showCompliance && (
+            <ComplianceChecklist
+              loanId={loan.id}
+              loanNumber={loan.loan_number}
+              borrowerName={borrowerName !== "—" ? borrowerName : undefined}
+            />
+          )}
+
+          <LoanTimeline loanId={loan.id} loanStatus={loan.status} />
+        </>
       )}
 
-      {showCompliance && (
-        <ComplianceChecklist
-          loanId={loan.id}
-          loanNumber={loan.loan_number}
-          borrowerName={borrowerName !== "—" ? borrowerName : undefined}
-        />
+      {commsOn && (
+        <CommunicationTimeline loanId={loan.id} title="Borrower Communications" />
       )}
-
-      <LoanTimeline loanId={loan.id} loanStatus={loan.status} />
-
-      <CommunicationTimeline loanId={loan.id} title="Borrower Communications" />
 
       {/* ── Borrower Portal ──────────────────────────────────────── */}
-      <div className="flex items-center gap-2 border-b pb-2">
-        <MessageSquare className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Borrower Portal
-        </h2>
-      </div>
+      {commsOn && (
+        <>
+          <div className="flex items-center gap-2 border-b pb-2">
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Borrower Portal
+            </h2>
+          </div>
 
-      {loan.borrower_id && (
-        <LoanMessagesPanel loanId={loan.id} borrowerId={loan.borrower_id} />
-      )}
+          {loan.borrower_id && (
+            <LoanMessagesPanel loanId={loan.id} borrowerId={loan.borrower_id} />
+          )}
 
-      {docuSignEnabled && loan.borrower_id && (
-        <LoanDisclosuresCard loanId={loan.id} borrowerId={loan.borrower_id} />
+          {docuSignEnabled && loan.borrower_id && (
+            <LoanDisclosuresCard loanId={loan.id} borrowerId={loan.borrower_id} />
+          )}
+        </>
       )}
 
       {/* Loan Coaching Agent side-panel */}
@@ -471,6 +515,7 @@ export default function LoanDetail() {
     </div>
   );
 }
+
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (

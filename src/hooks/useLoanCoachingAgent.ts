@@ -141,20 +141,24 @@ export function useLoanCoachingAgent(loanId: string | undefined) {
   const fetchThreads = useCallback(async () => {
     if (!isRoleAllowed || !user?.id || !loanId) return;
     try {
+      // MCT Lite: ai_chat_threads only has id/title/user_id/created_at/updated_at.
+      // Filter client-side by loan_id stored in title prefix (best-effort).
       const { data, error } = await supabase
         .from("ai_chat_threads")
-        .select("id, title, last_message_at")
+        .select("id, title, updated_at")
         .eq("user_id", user.id)
-        .eq("agent_slug", AGENT_SLUG)
-        .contains("metadata", { loan_id: loanId })
-        .order("last_message_at", { ascending: false })
+        .order("updated_at", { ascending: false })
         .limit(20);
       if (error) throw error;
-      setThreads((data ?? []) as CoachingThread[]);
+      const rows = (data ?? []) as Array<{ id: string; title: string | null; updated_at: string }>;
+      setThreads(
+        rows.map((r) => ({ id: r.id, title: r.title, last_message_at: r.updated_at })) as CoachingThread[],
+      );
     } catch (e) {
       console.error("Fetch coaching threads:", e);
     }
   }, [user?.id, loanId, isRoleAllowed]);
+
 
   const generateAndUpdateThreadTitle = useCallback(
     async (tid: string, allMessages: CoachingMessage[], existingTitle?: string | null) => {

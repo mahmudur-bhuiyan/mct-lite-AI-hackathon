@@ -170,9 +170,19 @@ serve(async (req) => {
         ]);
 
       if (locksError || historyError) {
-        console.error('Failed to fetch lock history:', locksError || historyError);
-        return new Response(JSON.stringify({ error: 'Failed to fetch lock history' }), {
-          status: 500,
+        const err = locksError || historyError;
+        console.error('Failed to fetch lock history:', err);
+        // Gracefully degrade when the rate_locks/rate_lock_history tables don't exist yet
+        // (e.g. PGRST205 "Could not find the table ... in the schema cache").
+        const code = (err as { code?: string } | null)?.code;
+        if (code === 'PGRST205' || code === '42P01') {
+          return new Response(
+            JSON.stringify({ locks: [], history: [], fallback: true, reason: 'rate_locks_not_provisioned' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
+        return new Response(JSON.stringify({ locks: [], history: [], fallback: true, error: 'Failed to fetch lock history' }), {
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }

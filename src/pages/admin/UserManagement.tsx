@@ -422,7 +422,7 @@ export default function UserManagement() {
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{users.length}</div>
+            <div className="text-2xl font-bold">{visibleUsers.length}</div>
           </CardContent>
         </Card>
         <Card>

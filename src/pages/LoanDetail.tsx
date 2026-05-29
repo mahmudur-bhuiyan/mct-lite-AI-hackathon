@@ -35,6 +35,7 @@ import { useEnabledAgentBySlug } from "@/hooks/useAIAgents";
 import { isAgentAllowedForUser } from "@/lib/agentRoles";
 import { STATUS_LABELS } from "@/lib/loan-pipeline-stages";
 import { supabase } from "@/lib/supabase";
+import { useModuleSettings, isModuleEnabled } from "@/hooks/useModuleSettings";
 import { CreditReportSection } from "@/components/data-foundation/CreditReportSection";
 import { EmploymentVerificationSection } from "@/components/data-foundation/EmploymentVerificationSection";
 import { PropertyValuationSection } from "@/components/data-foundation/PropertyValuationSection";
@@ -78,6 +79,18 @@ export default function LoanDetail() {
   const { needsAttention } = useLoanCoachingAgent(id);
   const [coachingOpen, setCoachingOpen] = useState(false);
   const [branchName, setBranchName] = useState<string | null>(null);
+
+  // MCT Lite: gate phase-specific cards behind enabled modules so we don't
+  // hit tables that were intentionally not migrated into the Lite schema.
+  const { data: modules } = useModuleSettings();
+  const pricingOn = isModuleEnabled(modules, "pricing");
+  const complianceOn = isModuleEnabled(modules, "compliance");
+  const docsOn = isModuleEnabled(modules, "document_review");
+  const underwritingOn = isModuleEnabled(modules, "underwriting_queue");
+  const commsOn = isModuleEnabled(modules, "communication_center");
+  const phase5On = pricingOn && complianceOn; // closing/digital execution
+  const workflowOn = underwritingOn || complianceOn; // SLA/milestones/conditions/timeline
+
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });

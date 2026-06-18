@@ -228,9 +228,6 @@ export function DocumentExtractViewer({
       {extract.metadata && Object.keys(extract.metadata).length > 0 && (
         <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
           Parser: {String(extract.metadata.parser ?? extract.metadata.engine ?? "unknown")}
-          {extract.metadata.spec_handler != null && (
-            <> · Spec: {String(extract.metadata.spec_handler)}</>
-          )}
           {extract.metadata.engine === "unpdf-fallback" && (
             <> · Fallback engine: unpdf</>
           )}

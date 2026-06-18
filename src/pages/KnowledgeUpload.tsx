@@ -14,14 +14,21 @@ import { Loader2, Upload, ArrowLeft, FileText, CheckCircle, AlertCircle, X } fro
 import { toast } from "sonner";
 import { useKnowledgeCategories } from "@/hooks/useKnowledge";
 import { suggestKnowledgeCategories } from "@/lib/knowledge-category-suggestions";
+import { DocumentExtractViewer } from "@/components/knowledge/DocumentExtractViewer";
+import {
+  waitForDocumentExtract,
+  type DocumentExtractViewModel,
+} from "@/lib/document-extract-utils";
 
 interface UploadedFile {
   file: File;
-  status: "pending" | "uploading" | "processing" | "completed" | "error";
+  status: "pending" | "uploading" | "processing" | "parsing" | "completed" | "error";
   progress: number;
   error?: string;
   path?: string;
   extractedContent?: string;
+  knowledgeEntryId?: string;
+  documentExtract?: DocumentExtractViewModel | null;
 }
 
 export default function KnowledgeUpload() {
@@ -277,21 +284,57 @@ export default function KnowledgeUpload() {
       console.log("✅ Knowledge entry created:", entry);
 
       try {
-        const { error: parseFnErr } = await supabase.functions.invoke("parse-document", {
+        const { data: parseData, error: parseFnErr } = await supabase.functions.invoke("parse-document", {
           body: { knowledge_entry_id: entry.id, storage_bucket: "user-knowledge" },
         });
         if (parseFnErr) {
           console.warn("parse-document:", parseFnErr.message);
-          toast.warning("Uploaded. Full text extraction may still be processing or failed — check the knowledge entry.");
+          toast.warning("Uploaded. Text extraction may still be processing — open the article to retry.");
+        } else if (parseData && typeof parseData === "object" && "error" in parseData) {
+          toast.warning(String((parseData as { error?: string }).error ?? "Parse failed"));
         }
+
+        setFiles((prev) =>
+          prev.map((f, i) =>
+            i === index ? { ...f, status: "parsing", progress: 90, knowledgeEntryId: entry.id } : f,
+          ),
+        );
+
+        const extractModel = await waitForDocumentExtract(entry.id);
+
+        if (extractModel?.parse_status === "done") {
+          toast.success(
+            `Extracted ${extractModel.word_count?.toLocaleString() ?? "—"} words${
+              extractModel.page_count ? ` from ${extractModel.page_count} pages` : ""
+            }. Ready for AI agents.`,
+          );
+        } else if (extractModel?.parse_status === "error") {
+          toast.error(extractModel.parse_error ?? "Document extraction failed");
+        }
+
+        setFiles((prev) =>
+          prev.map((f, i) =>
+            i === index
+              ? {
+                  ...f,
+                  status: "completed",
+                  progress: 100,
+                  knowledgeEntryId: entry.id,
+                  documentExtract: extractModel,
+                }
+              : f,
+          ),
+        );
       } catch (parseErr) {
         console.warn("parse-document invoke:", parseErr);
+        setFiles((prev) =>
+          prev.map((f, i) =>
+            i === index
+              ? { ...f, status: "completed", progress: 100, knowledgeEntryId: entry.id }
+              : f,
+          ),
+        );
       }
-
-      // Update to completed
-      setFiles((prev) =>
-        prev.map((f, i) => (i === index ? { ...f, status: "completed", progress: 100 } : f))
-      );
 
       return true;
     } catch (error: any) {
@@ -348,14 +391,10 @@ export default function KnowledgeUpload() {
       console.log(`📊 Upload complete: ${successCount} success, ${errorCount} errors`);
 
       if (successCount > 0) {
-        toast.success(`Successfully uploaded ${successCount} file(s)`);
+        toast.success(`Successfully uploaded ${successCount} file(s). Review extracted content below.`);
       }
       if (errorCount > 0) {
         toast.error(`Failed to upload ${errorCount} file(s)`);
-      }
-
-      if (errorCount === 0) {
-        setTimeout(() => navigate("/knowledge"), 1500);
       }
     } catch (error: any) {
       console.error("❌ Upload process error:", error);
@@ -373,6 +412,7 @@ export default function KnowledgeUpload() {
         return <AlertCircle className="h-5 w-5 text-destructive" />;
       case "uploading":
       case "processing":
+      case "parsing":
         return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
       default:
         return <FileText className="h-5 w-5 text-muted-foreground" />;
@@ -569,6 +609,31 @@ export default function KnowledgeUpload() {
                     )}
                     {uploadedFile.error && (
                       <p className="text-xs text-destructive">{uploadedFile.error}</p>
+                    )}
+                    {uploadedFile.status === "parsing" && (
+                      <p className="text-xs text-muted-foreground">Extracting text and structure…</p>
+                    )}
+                    {uploadedFile.documentExtract?.parse_status === "done" && (
+                      <div className="mt-3 rounded-lg border bg-muted/20 p-3">
+                        <p className="mb-2 text-sm font-medium">Extract preview</p>
+                        <DocumentExtractViewer
+                          extract={uploadedFile.documentExtract}
+                          compact
+                          showRagHint
+                        />
+                        {uploadedFile.knowledgeEntryId && (
+                          <Button
+                            type="button"
+                            variant="link"
+                            className="mt-2 h-auto p-0"
+                            onClick={() =>
+                              navigate(`/knowledge/${uploadedFile.knowledgeEntryId}#extracted-document`)
+                            }
+                          >
+                            Open full article view
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}

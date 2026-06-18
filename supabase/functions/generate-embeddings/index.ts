@@ -83,11 +83,26 @@ serve(async (req) => {
 
   const entityType = (body.entity_type ?? '').trim();
   const entityId = (body.entity_id ?? '').trim();
-  const rawText = (body.content ?? body.text ?? '').trim();
+  let rawText = (body.content ?? body.text ?? '').trim();
 
   if (!entityType || !entityId) {
     return jsonResp({ error: 'entity_type and entity_id are required' }, 400);
   }
+
+  const service = createClient(supabaseUrl, serviceRoleKey);
+
+  if (entityType === 'knowledge_entry') {
+    const { data: extractRow } = await service
+      .from('document_extracts')
+      .select('extracted_text')
+      .eq('knowledge_entry_id', entityId)
+      .eq('parse_status', 'done')
+      .maybeSingle();
+
+    const fromDb = (extractRow as { extracted_text?: string | null } | null)?.extracted_text?.trim();
+    if (fromDb) rawText = fromDb;
+  }
+
   if (!rawText) {
     return jsonResp({ error: 'content or text is required' }, 400);
   }
@@ -106,8 +121,6 @@ serve(async (req) => {
     console.error('generate-embeddings:', (e as Error)?.message ?? e);
     return jsonResp({ error: (e as Error).message || 'Embedding failed' }, 502);
   }
-
-  const service = createClient(supabaseUrl, serviceRoleKey);
 
   if (entityType === 'knowledge_entry') {
     const { data: entry, error: entryErr } = await service

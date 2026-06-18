@@ -380,15 +380,14 @@ export default function KnowledgeUpload() {
         const fileUrl = await uploadFile(uploadedFile, i);
 
         if (fileUrl) {
-          console.log("✅ File uploaded to storage:", fileUrl);
-          
+          console.log("✅ File uploaded to storage:", fileUrl.url);
+
           // Create knowledge entry in database with extracted content
-          const filePath = files[i].path || "";
-          const extractedContent = files[i].extractedContent || "";
-          await createKnowledgeEntry(fileUrl, uploadedFile.file.name, filePath, i, extractedContent);
+          await createKnowledgeEntry(fileUrl.url, uploadedFile.file.name, fileUrl.path, i, fileUrl.extractedContent);
         } else {
           console.error("❌ File upload failed for:", uploadedFile.file.name);
         }
+
       }
 
       const successCount = files.filter((f) => f.status === "completed").length;

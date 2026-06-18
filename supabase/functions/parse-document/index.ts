@@ -1,5 +1,6 @@
 /**
- * parse-document — Extract text from uploaded Knowledge files (PDF, DOCX, XLSX, PPTX, TXT, MD, JSON).
+ * parse-document — Universal document ingestion for Knowledge / loan uploads.
+ * Formats: PDF (pdf-parse), DOCX, XLSX, PPTX, TXT, MD, JSON.
  * POST { knowledge_entry_id: string, storage_bucket?: "user-knowledge" | "loan-borrower-uploads" }
  * Authorization: Bearer <jwt>
  */
@@ -8,6 +9,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders, jsonResp } from '../_shared/ai-utils.ts';
 import { assertStaffCanAccessLoan } from '../_shared/staff-loan-access.ts';
+import { extractPdfText } from '../_shared/pdf-text-extract.ts';
 
 const MAX_CONTENT_CHARS = 1_200_000;
 const BUCKET_DEFAULT = 'user-knowledge';
@@ -76,6 +78,12 @@ async function parseBytes(
 }> {
   const lower = fileName.toLowerCase();
   const effectiveMime = mime || 'application/octet-stream';
+
+  if (effectiveMime === 'application/msword' || lower.endsWith('.doc')) {
+    throw new Error(
+      'Legacy .doc files are not supported. Save as .docx and upload again.',
+    );
+  }
 
   if (
     effectiveMime === 'text/plain' ||
@@ -198,51 +206,16 @@ async function parseBytes(
 
   if (effectiveMime === 'application/pdf' || lower.endsWith('.pdf')) {
     try {
-      const { extractText, getDocumentProxy } = await import('npm:unpdf@0.12.1');
-      const pdf = await getDocumentProxy(bytes);
-
-      // Prefer per-page extraction for section metadata (200+ page PDFs).
-      let pageTexts: string[] = [];
-      let pageCount: number | null = null;
-
-      try {
-        const perPage = await extractText(pdf, { mergePages: false }) as {
-          totalPages?: number;
-          text?: string | string[];
-        };
-        pageCount = typeof perPage?.totalPages === 'number' ? perPage.totalPages : null;
-        if (Array.isArray(perPage?.text)) {
-          pageTexts = perPage.text.map((p) => String(p).trim()).filter((p) => p.length > 0);
-        }
-      } catch {
-        // fall through to merged extraction
+      const pdfResult = await extractPdfText(bytes);
+      if (!pdfResult.text.trim()) {
+        throw new Error('No extractable text in PDF');
       }
-
-      if (pageTexts.length === 0) {
-        const merged = await extractText(pdf, { mergePages: true }) as {
-          totalPages?: number;
-          text?: string;
-        };
-        pageCount = pageCount ?? (typeof merged?.totalPages === 'number' ? merged.totalPages : null);
-        const full = (merged?.text ?? '').trim();
-        pageTexts = full.split(/\f/).map((p) => p.trim()).filter((p) => p.length > 0);
-        if (pageTexts.length === 0 && full) pageTexts = [full];
-      }
-
-      const sections = pageTexts.map((text, i) => ({
-        title: `Page ${i + 1}`,
-        page: i + 1,
-        text,
-      }));
-
-      const text = pageTexts.join('\n\n');
-
       return {
-        text,
-        pageCount: pageCount ?? pageTexts.length,
-        sections,
+        text: pdfResult.text,
+        pageCount: pdfResult.pageCount,
+        sections: pdfResult.sections,
         tablesJson: [],
-        extraMeta: { parser: 'unpdf', pages: pageTexts.length },
+        extraMeta: pdfResult.extraMeta,
       };
     } catch (e) {
       console.error('PDF parse failed:', (e as Error)?.message ?? e);

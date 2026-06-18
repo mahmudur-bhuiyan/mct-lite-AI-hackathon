@@ -6,25 +6,11 @@ type KnowledgeEntryDateSource = {
   author_id?: string | null;
 };
 
-/** Optional UI-only date override stored in metadata.display_date (ISO string). */
+/** Optional display date override in metadata.display_date (e.g. demo backfill for older uploads). */
 export function getKnowledgeEntryDisplayDate(entry: KnowledgeEntryDateSource): string {
   const meta = entry.metadata as { display_date?: string } | null | undefined;
   const override = meta?.display_date?.trim();
   if (override) return override;
-
-  const created = new Date(entry.created_at);
-  if (
-    !Number.isNaN(created.getTime()) &&
-    created.getUTCFullYear() === 2026 &&
-    created.getUTCMonth() === 5 &&
-    created.getUTCDate() === 18
-  ) {
-    const may = new Date(created);
-    may.setUTCMonth(4);
-    may.setUTCDate(18);
-    return may.toISOString();
-  }
-
   return entry.created_at;
 }
 

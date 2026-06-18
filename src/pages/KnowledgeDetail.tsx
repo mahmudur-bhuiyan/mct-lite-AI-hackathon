@@ -11,6 +11,8 @@ import {
   useDocumentExtractForEntry,
 } from "@/hooks/useKnowledge";
 import { RelatedArticles } from "@/components/knowledge/RelatedArticles";
+import { DocumentExtractViewer } from "@/components/knowledge/DocumentExtractViewer";
+import { toExtractViewModel } from "@/lib/document-extract-utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -46,7 +48,6 @@ import {
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function KnowledgeDetail() {
@@ -316,55 +317,23 @@ export default function KnowledgeDetail() {
 
       {/* Server-parsed document text & structure */}
       {id && filePath && (
-        <Card>
+        <Card id="extracted-document">
           <CardHeader>
             <CardTitle className="text-lg">Extracted document</CardTitle>
             <CardDescription>
-              Parser output (searchable via the Knowledge Base agent tool). Re-run extraction if this is empty or
-              wrong.
+              Structured parser output from your upload. This content powers AI agent search and
+              RAG retrieval for this article.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {!docExtract && (
               <p className="text-sm text-muted-foreground">
-                No extract row yet — parsing may still be running, or the document needs to be processed again.
+                No extract yet — parsing may still be running. Use &quot;Extract text again&quot; if
+                this stays empty.
               </p>
             )}
             {docExtract && (
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant={docExtract.parse_status === "done" ? "secondary" : "outline"}>
-                    {docExtract.parse_status}
-                  </Badge>
-                  {docExtract.word_count != null && <span>{docExtract.word_count} words</span>}
-                  {docExtract.parsed_at && <span>Parsed {formatDate(docExtract.parsed_at)}</span>}
-                </div>
-                {docExtract.parse_error && (
-                  <p className="text-sm text-destructive">{docExtract.parse_error}</p>
-                )}
-                <Tabs defaultValue="text" className="w-full">
-                  <TabsList>
-                    <TabsTrigger value="text">Text</TabsTrigger>
-                    <TabsTrigger value="sections">Sections (JSON)</TabsTrigger>
-                    <TabsTrigger value="tables">Tables (JSON)</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="text" className="mt-3">
-                    <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md border bg-muted/30 p-4 text-sm">
-                      {docExtract.extracted_text?.trim() || "—"}
-                    </pre>
-                  </TabsContent>
-                  <TabsContent value="sections" className="mt-3">
-                    <pre className="max-h-96 overflow-auto rounded-md border bg-muted/30 p-4 text-xs font-mono">
-                      {JSON.stringify(docExtract.sections ?? [], null, 2)}
-                    </pre>
-                  </TabsContent>
-                  <TabsContent value="tables" className="mt-3">
-                    <pre className="max-h-96 overflow-auto rounded-md border bg-muted/30 p-4 text-xs font-mono">
-                      {JSON.stringify(docExtract.tables_json ?? [], null, 2)}
-                    </pre>
-                  </TabsContent>
-                </Tabs>
-              </div>
+              <DocumentExtractViewer extract={toExtractViewModel(docExtract)} />
             )}
           </CardContent>
         </Card>

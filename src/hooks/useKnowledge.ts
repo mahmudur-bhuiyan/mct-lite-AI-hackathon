@@ -93,6 +93,7 @@ export interface DocumentExtractRow {
   extracted_text: string | null;
   sections: unknown;
   tables_json: unknown;
+  metadata: unknown;
   file_name: string;
   parsed_at: string | null;
 }
@@ -105,7 +106,7 @@ export function useDocumentExtractForEntry(knowledgeEntryId: string) {
       const { data, error } = await supabase
         .from("document_extracts")
         .select(
-          "id, knowledge_entry_id, parse_status, parse_error, word_count, page_count, extracted_text, sections, tables_json, file_name, parsed_at",
+          "id, knowledge_entry_id, parse_status, parse_error, word_count, page_count, extracted_text, sections, tables_json, metadata, file_name, parsed_at",
         )
         .eq("knowledge_entry_id", knowledgeEntryId)
         .maybeSingle();

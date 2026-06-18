@@ -200,22 +200,49 @@ async function parseBytes(
     try {
       const { extractText, getDocumentProxy } = await import('npm:unpdf@0.12.1');
       const pdf = await getDocumentProxy(bytes);
-      const result = await extractText(pdf, { mergePages: true }) as {
-        totalPages?: number;
-        text?: string;
-      };
-      const full = (result?.text ?? '').trim();
-      const pageCount = typeof result?.totalPages === 'number' ? result.totalPages : null;
-      const pages = full.split(/\f/).filter((p) => p.trim().length > 0);
-      const sections = pages.length > 1
-        ? pages.map((p, i) => ({ title: `Page ${i + 1}`, page: i + 1, text: p.trim() }))
-        : [{ title: 'Document', page: pageCount ?? 1, text: full }];
+
+      // Prefer per-page extraction for section metadata (200+ page PDFs).
+      let pageTexts: string[] = [];
+      let pageCount: number | null = null;
+
+      try {
+        const perPage = await extractText(pdf, { mergePages: false }) as {
+          totalPages?: number;
+          text?: string | string[];
+        };
+        pageCount = typeof perPage?.totalPages === 'number' ? perPage.totalPages : null;
+        if (Array.isArray(perPage?.text)) {
+          pageTexts = perPage.text.map((p) => String(p).trim()).filter((p) => p.length > 0);
+        }
+      } catch {
+        // fall through to merged extraction
+      }
+
+      if (pageTexts.length === 0) {
+        const merged = await extractText(pdf, { mergePages: true }) as {
+          totalPages?: number;
+          text?: string;
+        };
+        pageCount = pageCount ?? (typeof merged?.totalPages === 'number' ? merged.totalPages : null);
+        const full = (merged?.text ?? '').trim();
+        pageTexts = full.split(/\f/).map((p) => p.trim()).filter((p) => p.length > 0);
+        if (pageTexts.length === 0 && full) pageTexts = [full];
+      }
+
+      const sections = pageTexts.map((text, i) => ({
+        title: `Page ${i + 1}`,
+        page: i + 1,
+        text,
+      }));
+
+      const text = pageTexts.join('\n\n');
+
       return {
-        text: pages.length > 1 ? pages.map((p) => p.trim()).join('\n\n') : full,
-        pageCount,
+        text,
+        pageCount: pageCount ?? pageTexts.length,
         sections,
         tablesJson: [],
-        extraMeta: { parser: 'unpdf' },
+        extraMeta: { parser: 'unpdf', pages: pageTexts.length },
       };
     } catch (e) {
       console.error('PDF parse failed:', (e as Error)?.message ?? e);

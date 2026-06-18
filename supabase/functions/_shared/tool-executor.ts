@@ -14,6 +14,38 @@
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { ToolDefinition } from './ai-utils.ts';
 
+type ExtractSection = { title?: string | null; page?: number | null; text?: string };
+
+function excerptFromDocumentExtract(
+  extractedText: string,
+  sections: unknown,
+  needle: string,
+  maxLen = 1200,
+): { excerpt: string; section_title?: string; page?: number } {
+  const lower = needle.toLowerCase().replace(/%/g, '').trim();
+  if (lower && Array.isArray(sections)) {
+    for (const raw of sections) {
+      const s = raw as ExtractSection;
+      const body = typeof s?.text === 'string' ? s.text : '';
+      if (body && body.toLowerCase().includes(lower)) {
+        return {
+          excerpt: body.slice(0, maxLen),
+          section_title: s.title ?? undefined,
+          page: typeof s.page === 'number' ? s.page : undefined,
+        };
+      }
+    }
+  }
+  if (lower) {
+    const idx = extractedText.toLowerCase().indexOf(lower);
+    if (idx >= 0) {
+      const start = Math.max(0, idx - 120);
+      return { excerpt: extractedText.slice(start, start + maxLen) };
+    }
+  }
+  return { excerpt: extractedText.slice(0, maxLen) };
+}
+
 // ── Built-in tool catalogue ───────────────────────────────────────────────────
 
 export const BUILT_IN_TOOLS: Record<string, ToolDefinition> = {
@@ -274,7 +306,7 @@ export async function executeBuiltInTool(
 
         let exQb = supabase
           .from('document_extracts')
-          .select('extracted_text, word_count, file_name, parse_status, knowledge_entry_id, knowledge_entries(id, title)')
+          .select('extracted_text, word_count, file_name, parse_status, knowledge_entry_id, sections, knowledge_entries(id, title)')
           .eq('parse_status', 'done')
           .ilike('extracted_text', pattern)
           .limit(limit);
@@ -282,6 +314,8 @@ export async function executeBuiltInTool(
 
         const { data: extractRows, error: exErr } = await exQb;
         if (exErr) throw exErr;
+
+        const needle = safe.trim();
 
         const fromEntries = (entryRows ?? []).map((r) => ({
           source: 'knowledge_entry' as const,
@@ -293,11 +327,15 @@ export async function executeBuiltInTool(
 
         const fromExtracts = (extractRows ?? []).map((r) => {
           const ke = r.knowledge_entries as { id?: string; title?: string } | null;
+          const fullText = r.extracted_text ?? '';
+          const hit = excerptFromDocumentExtract(fullText, r.sections, needle);
           return {
             source: 'document_extract' as const,
             knowledge_entry_id: r.knowledge_entry_id,
             title: ke?.title ?? r.file_name ?? 'Document',
-            excerpt: (r.extracted_text ?? '').slice(0, 1200),
+            excerpt: hit.excerpt,
+            section_title: hit.section_title,
+            page: hit.page,
             word_count: r.word_count,
             file_name: r.file_name,
           };

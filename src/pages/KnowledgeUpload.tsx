@@ -60,7 +60,6 @@ export default function KnowledgeUpload() {
     const allowedTypes = [
       "application/pdf",
       "text/plain",
-      "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -74,9 +73,12 @@ export default function KnowledgeUpload() {
         !file.name.endsWith(".md") &&
         !file.name.endsWith(".json") &&
         !file.name.endsWith(".xlsx") &&
-        !file.name.endsWith(".pptx")
+        !file.name.endsWith(".pptx") &&
+        !file.name.toLowerCase().endsWith(".doc")
       ) {
-        toast.error(`${file.name}: Unsupported file type`);
+        toast.error(
+          `${file.name}: Unsupported file type. Use PDF, DOCX, XLSX, PPTX, TXT, MD, or JSON.`,
+        );
         return false;
       }
       if (file.size > 10 * 1024 * 1024) {
@@ -471,7 +473,7 @@ export default function KnowledgeUpload() {
               multiple
               onChange={handleFileChange}
               disabled={uploading}
-              accept=".pdf,.txt,.doc,.docx,.md,.json,.xlsx,.pptx"
+              accept=".pdf,.txt,.docx,.md,.json,.xlsx,.pptx"
             />
           </div>
 

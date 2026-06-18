@@ -46,15 +46,18 @@ import {
   ExternalLink,
   RefreshCw,
 } from "lucide-react";
-import { formatDate } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  canManageKnowledgeEntry,
+  formatKnowledgeEntryDate,
+} from "@/lib/knowledge-display-utils";
 
 export default function KnowledgeDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [reparsing, setReparsing] = useState(false);
   const [signedUrl, setSignedUrl] = React.useState<string | null>(null);
 
@@ -79,7 +82,7 @@ export default function KnowledgeDetail() {
     }
   };
 
-  const canEdit = Boolean(user && entry && entry.author_id === user.id);
+  const canManage = canManageKnowledgeEntry(user?.id, profile?.role, entry);
   const fileName = entry?.metadata?.file_name;
   const filePath = entry?.metadata?.file_path;
   const storageBucket =
@@ -93,7 +96,7 @@ export default function KnowledgeDetail() {
   const extractDone =
     docExtract?.parse_status === "done" && (docExtract?.extracted_text?.length ?? 0) > 0;
   const showReparse = Boolean(
-    canEdit &&
+    canManage &&
       filePath &&
       (parseStatus === "error" ||
         docExtract?.parse_status === "error" ||
@@ -102,7 +105,7 @@ export default function KnowledgeDetail() {
   );
 
   const handleReparse = async () => {
-    if (!id || !canEdit) return;
+    if (!id || !canManage) return;
     setReparsing(true);
     try {
       const { data, error: fnError } = await supabase.functions.invoke("parse-document", {
@@ -196,7 +199,7 @@ export default function KnowledgeDetail() {
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              {formatDate(entry.created_at)}
+              {formatKnowledgeEntryDate(entry)}
             </div>
             {entry.view_count !== null && entry.view_count > 0 && (
               <div className="flex items-center gap-1">
@@ -235,7 +238,7 @@ export default function KnowledgeDetail() {
 
         {/* Actions */}
         <div className="flex gap-2">
-          {canEdit && (
+          {canManage && (
             <>
               <Button
                 variant="outline"
@@ -265,7 +268,7 @@ export default function KnowledgeDetail() {
               </AlertDialog>
             </>
           )}
-          {canEdit && showReparse && (
+          {canManage && showReparse && (
             <Button
               variant="secondary"
               size="sm"

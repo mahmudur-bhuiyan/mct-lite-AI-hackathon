@@ -153,7 +153,10 @@ export default function KnowledgeUpload() {
     return "";
   };
 
-  const uploadFile = async (uploadedFile: UploadedFile, index: number): Promise<string | null> => {
+  const uploadFile = async (
+    uploadedFile: UploadedFile,
+    index: number,
+  ): Promise<{ url: string; path: string; extractedContent: string } | null> => {
     if (!user) {
       console.error("❌ No user logged in");
       return null;
@@ -163,11 +166,11 @@ export default function KnowledgeUpload() {
       console.log("📤 Uploading file:", uploadedFile.file.name);
       console.log("📦 File size:", (uploadedFile.file.size / 1024).toFixed(2), "KB");
       console.log("📝 File type:", uploadedFile.file.type);
-      
+
       // Extract text content before upload
       const extractedContent = await extractTextContent(uploadedFile.file);
       console.log("📄 Extracted content length:", extractedContent.length, "characters");
-      
+
       // Update status to uploading and store extracted content
       setFiles((prev) =>
         prev.map((f, i) => (i === index ? { ...f, status: "uploading", progress: 30, extractedContent } : f))
@@ -176,7 +179,7 @@ export default function KnowledgeUpload() {
       // Upload to Supabase Storage
       const fileName = `${user.id}/${Date.now()}-${uploadedFile.file.name}`;
       console.log("💾 Uploading to path:", fileName);
-      
+
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("user-knowledge")
         .upload(fileName, uploadedFile.file, {
@@ -203,7 +206,7 @@ export default function KnowledgeUpload() {
 
       console.log("🔗 Public URL:", urlData.publicUrl);
 
-      return urlData.publicUrl;
+      return { url: urlData.publicUrl, path: uploadData.path, extractedContent };
     } catch (error: any) {
       console.error("❌ Upload error:", error);
       setFiles((prev) =>
@@ -214,6 +217,7 @@ export default function KnowledgeUpload() {
       return null;
     }
   };
+
 
   const createKnowledgeEntry = async (
     fileUrl: string,

@@ -96,6 +96,8 @@ import AgentDetail from "./pages/AgentDetail";
 import OperationsCalendar from "./pages/OperationsCalendar";
 import UnderwritingQueue from "./pages/UnderwritingQueue";
 import DocumentReviewQueue from "./pages/DocumentReviewQueue";
+import PrequalChat from "./pages/PrequalChat";
+import PrequalDashboard from "./pages/PrequalDashboard";
 
 // Admin docs pages
 import ProductVision from "./pages/admin/docs/ProductVision";
@@ -304,6 +306,10 @@ const App = () => (
                   <Route path="/ai" element={<AIChat />} />
                   <Route path="/ai/chat" element={<AIChat />} />
                 </Route>
+
+                {/* AI Pre-Qualification Agent (hackathon demo) */}
+                <Route path="/prequal" element={<PrequalChat />} />
+                <Route path="/prequal/dashboard" element={<PrequalDashboard />} />
 
                 {/* Admin-only AI agent management routes */}
                 <Route element={<AdminRoute />}>

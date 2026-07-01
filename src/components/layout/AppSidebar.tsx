@@ -32,6 +32,8 @@ import {
   MessageSquare,
   Info,
   ExternalLink,
+  Home,
+  ClipboardList,
 } from "lucide-react";
 
 const ABOUT_URL =
@@ -135,6 +137,18 @@ const aiToolsItems: SidebarItem[] = [
     icon: Bot,
     isAI: true,
     featureFlag: "enableAIAgents",
+  },
+  {
+    title: "Pre-Qualification",
+    href: "/prequal",
+    icon: Home,
+    isAI: true,
+  },
+  {
+    title: "LO Pipeline",
+    href: "/prequal/dashboard",
+    icon: ClipboardList,
+    isAI: true,
   },
 ];
 

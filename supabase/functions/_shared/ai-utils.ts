@@ -254,7 +254,7 @@ export type LLMProvider = 'lovable' | 'openai' | 'anthropic' | 'google' | 'perpl
 
 /**
  * Retrieves an API key for the given provider from integration_settings or env vars.
- * Falls back to env vars: OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_AI_API_KEY, PERPLEXITY_API_KEY.
+ * Falls back to env vars: OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_AI_API_KEY, GEMINI_API_KEY, PERPLEXITY_API_KEY.
  */
 export async function getProviderApiKey(provider: LLMProvider): Promise<string | null> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -281,7 +281,12 @@ export async function getProviderApiKey(provider: LLMProvider): Promise<string |
     google: 'GOOGLE_AI_API_KEY',
     perplexity: 'PERPLEXITY_API_KEY',
   };
-  return Deno.env.get(envMap[provider]) ?? null;
+  const key = Deno.env.get(envMap[provider]);
+  if (key) return key;
+  if (provider === 'google') {
+    return Deno.env.get('GEMINI_API_KEY') ?? null;
+  }
+  return null;
 }
 
 /**

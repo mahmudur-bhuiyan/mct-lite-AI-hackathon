@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { computePipelineStats, dtiColorClass, type PipelineRow } from "@/lib/prequal-pipeline";
+
+// The prequal_* tables aren't in the generated Supabase types yet (their
+// migrations aren't applied to the linked project), so query them through an
+// untyped client view. Row shapes are enforced locally via SessionRow/DocumentItem.
+const prequalDb = supabase as unknown as SupabaseClient;
 
 export interface DocumentItem {
   document_name: string;
@@ -84,8 +90,25 @@ function mapSessionToPipelineRow(session: SessionRow): PipelineRow {
   };
 }
 
+/**
+ * A session is only a real lead if the borrower actually gave input:
+ * an identity (name/email) or any extracted financial data. Empty
+ * "Anonymous" shell sessions are never shown or counted.
+ */
+function isRealLead(row: PipelineRow): boolean {
+  const hasIdentity = !!(row.borrower_name || row.borrower_email);
+  const hasData =
+    row.product_type != null ||
+    row.prequal_amount != null ||
+    row.loan_amount != null ||
+    row.monthly_payment != null ||
+    row.back_dti != null ||
+    row.credit_tier != null;
+  return hasIdentity || hasData;
+}
+
 async function fetchPipeline(): Promise<PipelineRow[]> {
-  const { data, error } = await supabase
+  const { data, error } = await prequalDb
     .from("prequal_sessions")
     .select(
       `
@@ -121,11 +144,11 @@ async function fetchPipeline(): Promise<PipelineRow[]> {
     .order("created_at", { ascending: false })
     .limit(100);
   if (error) throw error;
-  return ((data ?? []) as SessionRow[]).map(mapSessionToPipelineRow);
+  return ((data ?? []) as SessionRow[]).map(mapSessionToPipelineRow).filter(isRealLead);
 }
 
 async function fetchDocuments(sessionId: string): Promise<DocumentItem[]> {
-  const { data } = await supabase
+  const { data } = await prequalDb
     .from("prequal_document_items")
     .select("document_name, collected")
     .eq("session_id", sessionId);

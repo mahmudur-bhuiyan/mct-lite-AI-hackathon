@@ -30,6 +30,7 @@ import MicrosoftAuthCallback from "./pages/MicrosoftAuthCallback";
 import NotFound from "./pages/NotFound";
 import EnvDebug from "./pages/EnvDebug";
 import PublicPrequalCalculator from "./pages/PublicPrequalCalculator";
+import PublicAlexPrequal from "./pages/PublicAlexPrequal";
 import MortgageCalculatorWidget from "./pages/MortgageCalculatorWidget";
 import PortalLayout from "./pages/portal/PortalLayout";
 import PortalRedeem from "./pages/portal/PortalRedeem";
@@ -96,6 +97,8 @@ import AgentDetail from "./pages/AgentDetail";
 import OperationsCalendar from "./pages/OperationsCalendar";
 import UnderwritingQueue from "./pages/UnderwritingQueue";
 import DocumentReviewQueue from "./pages/DocumentReviewQueue";
+import PrequalChat from "./pages/PrequalChat";
+import PrequalDashboard from "./pages/PrequalDashboard";
 
 // Admin docs pages
 import ProductVision from "./pages/admin/docs/ProductVision";
@@ -123,7 +126,8 @@ const App = () => (
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/auth-callback" element={<MicrosoftAuthCallback />} />
             <Route path="/env-debug" element={<EnvDebug />} />
-            <Route path="/prequal-public" element={<PublicPrequalCalculator />} />
+            <Route path="/prequal-public" element={<PublicAlexPrequal />} />
+            <Route path="/prequal-public/calculator" element={<PublicPrequalCalculator />} />
             <Route path="/mortgage-calculator-widget" element={<MortgageCalculatorWidget />} />
 
             <Route path="/portal" element={<PortalLayout />}>
@@ -304,6 +308,10 @@ const App = () => (
                   <Route path="/ai" element={<AIChat />} />
                   <Route path="/ai/chat" element={<AIChat />} />
                 </Route>
+
+                {/* AI Pre-Qualification Agent (hackathon demo) */}
+                <Route path="/prequal" element={<PrequalChat />} />
+                <Route path="/prequal/dashboard" element={<PrequalDashboard />} />
 
                 {/* Admin-only AI agent management routes */}
                 <Route element={<AdminRoute />}>

@@ -14,7 +14,12 @@ import { getNormalizedUserRoles } from "@/lib/agentRoles";
 import type { TourVariant } from "@/components/tour/tourSteps";
 
 function isChatRoute(pathname: string) {
-  return pathname === "/ai" || pathname === "/ai/chat" || /^\/ai\/agents\/[^/]+\/chat$/.test(pathname);
+  return (
+    pathname === "/ai" ||
+    pathname === "/ai/chat" ||
+    pathname === "/prequal" ||
+    /^\/ai\/agents\/[^/]+\/chat$/.test(pathname)
+  );
 }
 
 function DashboardLayoutContent() {

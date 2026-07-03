@@ -9,6 +9,26 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Loader2, ShieldCheck, Lock, ExternalLink } from "lucide-react";
 import logoUrl from "@/assets/mortgageai-logo.svg";
 
+async function readFunctionError(
+  error: unknown,
+  data: { error?: string } | null,
+): Promise<string> {
+  if (data?.error) return data.error;
+  if (error && typeof error === "object" && "context" in error) {
+    try {
+      const ctx = (error as { context?: Response }).context;
+      if (ctx) {
+        const body = (await ctx.json()) as { error?: string };
+        if (body?.error) return body.error;
+      }
+    } catch {
+      // fall through
+    }
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return "Failed to create account";
+}
+
 export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,9 +69,20 @@ export default function Signup() {
         method: "POST",
         body: { email, password, full_name: fullName },
       });
-      if (error) throw error;
       const result = data as { ok?: boolean; error?: string } | null;
-      if (result?.error) throw new Error(result.error);
+      if (error || result?.error || !result?.ok) {
+        const message = await readFunctionError(error, result);
+        if (message.includes("already been registered") || message.includes("duplicate")) {
+          throw new Error(
+            "This email is already registered. Try signing in at /login, or use a different email. " +
+              "If signup failed earlier, delete the user in Supabase → Authentication → Users.",
+          );
+        }
+        if (message === "signup_closed") {
+          throw new Error("An admin already exists. Use /login or ask for an invite.");
+        }
+        throw new Error(message);
+      }
       await signIn(email, password);
       navigate("/admin", { replace: true });
     } catch (err: unknown) {

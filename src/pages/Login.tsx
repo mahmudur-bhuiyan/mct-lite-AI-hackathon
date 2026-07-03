@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ShieldCheck, ExternalLink } from "lucide-react";
+import { Loader2, ShieldCheck, ExternalLink, Bot } from "lucide-react";
 import logoUrl from "@/assets/mortgageai-logo.svg";
 
 function routeForRole(role: string | undefined): string {
@@ -17,6 +17,7 @@ function routeForRole(role: string | undefined): string {
 }
 
 export default function Login() {
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,6 +25,12 @@ export default function Login() {
   const [bootstrapOpen, setBootstrapOpen] = useState<boolean | null>(null);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+  const prefillName = searchParams.get("name");
+
+  useEffect(() => {
+    const prefillEmail = searchParams.get("email");
+    if (prefillEmail) setEmail(prefillEmail);
+  }, [searchParams]);
 
   useEffect(() => {
     (async () => {
@@ -97,13 +104,30 @@ export default function Login() {
         <Card className="shadow-premium">
           <CardHeader className="space-y-1 pb-4 text-center">
             <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-            <CardDescription>Sign in to your account to continue</CardDescription>
+            <CardDescription>
+              {prefillName
+                ? `Sign in to save your pre-qualification progress, ${prefillName.split(" ")[0]}.`
+                : "Sign in to your account to continue"}
+            </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               {/* Info banner */}
               <div className="rounded-lg bg-muted/60 px-4 py-2.5 text-center text-xs text-muted-foreground">
                 New users are added by an administrator from the admin panel.
+              </div>
+
+              <div className="rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-background px-4 py-4 text-center shadow-sm">
+                <p className="text-base font-semibold text-foreground">Borrower?</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Get pre-qualified with Alex in minutes — no sign-in required.
+                </p>
+                <Button asChild className="mt-3 w-full font-semibold" size="lg">
+                  <Link to="/prequal-public">
+                    <Bot className="mr-2 h-4 w-4" />
+                    Start free pre-qualification
+                  </Link>
+                </Button>
               </div>
 
               {/* Live demo button */}

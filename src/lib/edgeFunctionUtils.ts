@@ -1,5 +1,38 @@
 import { FunctionsHttpError } from "@supabase/supabase-js";
 
+/** Strip provider/API noise so chat UIs show only the primary error sentence. */
+export function formatUserFacingAiError(raw: string, fallback = "Something went wrong. Please try again."): string {
+  let msg = raw.trim();
+  if (!msg) return fallback;
+
+  msg = msg.replace(/^Error:\s*/i, "");
+  msg = msg.replace(/^(?:Gemini|OpenAI|Anthropic|Google|Lovable AI)\s+API error\s*\(\d+\):\s*/i, "");
+  msg = msg.replace(/^(?:Lovable AI Gateway error)\s*\(\d+\):\s*/i, "");
+
+  const forMoreIdx = msg.indexOf("For more information");
+  if (forMoreIdx > 0) msg = msg.slice(0, forMoreIdx).trim();
+
+  const urlIdx = msg.search(/https?:\/\//);
+  if (urlIdx > 0) msg = msg.slice(0, urlIdx).trim();
+
+  msg = msg
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("*") && !/^Please retry in/i.test(line))
+    .join(" ")
+    .trim();
+
+  msg = msg.replace(/\s+/g, " ").replace(/[.\s]+$/, "").trim();
+  if (msg && !/[.!?]$/.test(msg)) msg += ".";
+
+  if (msg.length > 220) {
+    const sentence = msg.match(/^[^.!?]+[.!?]/);
+    if (sentence) msg = sentence[0];
+  }
+
+  return msg || fallback;
+}
+
 export async function extractEdgeFunctionErrorMessage(
   error: unknown,
   fallback: string,
@@ -39,7 +72,7 @@ export async function extractEdgeFunctionErrorMessage(
     }
   }
 
-  return msg;
+  return formatUserFacingAiError(msg, fallback);
 }
 
 export function isPersistedRowNewer(args: {

@@ -12,10 +12,13 @@ dist
 dist-ssr
 *.local
 
-# Environment variables (temporarily allowing .env for Lovable deployment)
-# .env
+# Environment variables
+.env
 .env.local
 .env.*.local
+
+# Supabase CLI local cache (machine-specific)
+supabase/.temp/
 
 # Temporary SQL scripts
 *.sql

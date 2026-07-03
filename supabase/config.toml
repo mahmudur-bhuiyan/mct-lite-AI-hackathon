@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.seed-demo-users]
 verify_jwt = false
+
+[functions.prequal-agent]
+verify_jwt = false

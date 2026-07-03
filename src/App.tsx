@@ -30,6 +30,7 @@ import MicrosoftAuthCallback from "./pages/MicrosoftAuthCallback";
 import NotFound from "./pages/NotFound";
 import EnvDebug from "./pages/EnvDebug";
 import PublicPrequalCalculator from "./pages/PublicPrequalCalculator";
+import PublicAlexPrequal from "./pages/PublicAlexPrequal";
 import MortgageCalculatorWidget from "./pages/MortgageCalculatorWidget";
 import PortalLayout from "./pages/portal/PortalLayout";
 import PortalRedeem from "./pages/portal/PortalRedeem";
@@ -125,7 +126,8 @@ const App = () => (
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/auth-callback" element={<MicrosoftAuthCallback />} />
             <Route path="/env-debug" element={<EnvDebug />} />
-            <Route path="/prequal-public" element={<PublicPrequalCalculator />} />
+            <Route path="/prequal-public" element={<PublicAlexPrequal />} />
+            <Route path="/prequal-public/calculator" element={<PublicPrequalCalculator />} />
             <Route path="/mortgage-calculator-widget" element={<MortgageCalculatorWidget />} />
 
             <Route path="/portal" element={<PortalLayout />}>

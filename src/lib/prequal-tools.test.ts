@@ -7,6 +7,11 @@ import {
   matchLoanProducts,
   checkDocumentGaps,
   dtiColorClass,
+  resolveLoanMatchForPersist,
+  extractLoanMatchFromProfile,
+  extractFinancials,
+  formatSessionTitle,
+  getOfficerProfile,
 } from "../../supabase/functions/_shared/prequal-tools";
 
 describe("prequal-agent deterministic tools", () => {
@@ -45,6 +50,14 @@ describe("prequal-agent deterministic tools", () => {
     expect(result.letter.loan_product).toBe("Conventional");
 
     expect(result.assignedOfficer).toBe("Sarah Mitchell");
+    expect(getOfficerProfile(result.assignedOfficer)).toMatchObject({
+      name: "Sarah Mitchell",
+      title: "Senior Mortgage Specialist",
+      email: "sarah.mitchell@mctmortgage.com",
+      phone: "(555) 201-4601",
+      nmls_id: "1583921",
+      specialty: "Conventional loans",
+    });
 
     expect(result.pipelineRow).toMatchObject({
       session_id: "sess-abc-123",
@@ -151,5 +164,77 @@ describe("prequal-agent deterministic tools", () => {
       {},
     );
     expect(match.product_type).toBe("FHA");
+  });
+
+  it("resolveLoanMatchForPersist builds from letter when match tool was skipped", () => {
+    const letter = {
+      borrower_name: "Mahmudur Bhuiyan",
+      prequal_amount: 80_000,
+      loan_product: "Conventional",
+      purchase_price: 100_000,
+    };
+    const profile = {
+      borrower_name: "Mahmudur Bhuiyan",
+      annual_income: 200_000,
+      monthly_debts: 0,
+      target_price: 100_000,
+      down_payment: 20_000,
+      credit_tier: "excellent",
+    };
+
+    const resolved = resolveLoanMatchForPersist(null, profile, letter);
+    expect(resolved).not.toBeNull();
+    expect(resolved!.product_type).toBe("Conventional");
+    expect(resolved!.prequal_amount).toBe(80_000);
+    expect(resolved!.loan_amount).toBe(80_000);
+  });
+
+  it("resolveLoanMatchForPersist reuses match fields on profile from prior turn", () => {
+    const carried = {
+      product_type: "Conventional",
+      prequal_amount: 450_000,
+      loan_amount: 405_000,
+      down_payment: 45_000,
+      ltv: 90,
+      estimated_rate: 7.1,
+      monthly_payment: 2720,
+    };
+    expect(extractLoanMatchFromProfile(carried)).toEqual(carried);
+    expect(resolveLoanMatchForPersist(null, carried, null)).toEqual(carried);
+  });
+
+  it("formatSessionTitle uses the borrower's message as the chat name", () => {
+    expect(formatSessionTitle("condo in 45 k")).toBe("condo in 45 k");
+    expect(formatSessionTitle("  duplex 100k  ")).toBe("duplex 100k");
+    expect(formatSessionTitle("")).toBeNull();
+    const long = formatSessionTitle("looking for a condo around 450k");
+    expect(long?.endsWith("…")).toBe(true);
+    expect(long!.length).toBeLessThanOrEqual(20);
+  });
+
+  it("extractFinancials stores name/email and ignores empty/unknown fields", () => {
+    const { profile, extracted } = extractFinancials(
+      {
+        borrower_name: "  Jane Doe  ",
+        borrower_email: "jane@example.com",
+        target_price: 100_000,
+        annual_income: null,
+        monthly_debts: "",
+        not_a_field: "ignore me",
+      },
+      { annual_income: 200_000 },
+    );
+
+    expect(extracted).toEqual({
+      borrower_name: "Jane Doe",
+      borrower_email: "jane@example.com",
+      target_price: 100_000,
+    });
+    expect(profile).toEqual({
+      annual_income: 200_000,
+      borrower_name: "Jane Doe",
+      borrower_email: "jane@example.com",
+      target_price: 100_000,
+    });
   });
 });

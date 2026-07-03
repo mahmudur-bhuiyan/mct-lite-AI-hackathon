@@ -5,6 +5,7 @@
 
 export const PROFILE_COLUMNS = new Set([
   "borrower_name",
+  "borrower_email",
   "annual_income",
   "monthly_debts",
   "assets",
@@ -21,6 +22,7 @@ export const PROFILE_COLUMNS = new Set([
 
 export interface PrequalProfile {
   borrower_name?: string;
+  borrower_email?: string;
   annual_income?: number;
   monthly_debts?: number;
   assets?: number;
@@ -65,14 +67,15 @@ export interface PipelineRow {
   id?: string;
   session_id: string;
   borrower_name: string | null;
-  product_type: string;
-  prequal_amount: number;
-  loan_amount: number;
-  estimated_rate: number;
-  monthly_payment: number;
+  borrower_email?: string | null;
+  product_type?: string | null;
+  prequal_amount?: number | null;
+  loan_amount?: number | null;
+  estimated_rate?: number | null;
+  monthly_payment?: number | null;
   back_dti: number | null;
   credit_tier: string | null;
-  status: "pending" | "qualified" | "referred" | "declined";
+  status: "inquiry" | "pending" | "qualified" | "referred" | "declined";
   letter_generated: boolean;
   assigned_officer: string | null;
   created_at?: string;
@@ -88,11 +91,34 @@ export function pickProfileFields(profile: Record<string, unknown>): Record<stri
   return out;
 }
 
+/** Build a short chat-history title from the borrower's first message (max 20 chars). */
+export function formatSessionTitle(message: string, maxLen = 20): string | null {
+  const cleaned = message.replace(/\s+/g, " ").trim();
+  if (!cleaned) return null;
+  if (cleaned.length <= maxLen) return cleaned;
+  const budget = Math.max(1, maxLen - 1); // reserve one char for ellipsis
+  const cut = cleaned.slice(0, budget);
+  const lastSpace = cut.lastIndexOf(" ");
+  const base = (lastSpace > Math.floor(budget / 2) ? cut.slice(0, lastSpace) : cut).trim();
+  return `${base}…`;
+}
+
 export function extractFinancials(
   input: Record<string, unknown>,
   profile: PrequalProfile,
 ): { profile: PrequalProfile; extracted: Record<string, unknown> } {
-  const extracted = { ...input };
+  const extracted: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (!PROFILE_COLUMNS.has(key)) continue;
+    if (value === undefined || value === null || value === "") continue;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) continue;
+      extracted[key] = trimmed;
+      continue;
+    }
+    extracted[key] = value;
+  }
   return { profile: { ...profile, ...extracted }, extracted };
 }
 
@@ -226,21 +252,206 @@ export function generatePrequalLetter(
   };
 }
 
-const OFFICERS: Record<string, string[]> = {
+export interface OfficerProfile {
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  nmls_id: string;
+  specialty: string;
+}
+
+const OFFICER_ROSTER: OfficerProfile[] = [
+  {
+    name: "James Rodriguez",
+    title: "VA Loan Specialist",
+    email: "james.rodriguez@mctmortgage.com",
+    phone: "(555) 201-4401",
+    nmls_id: "1847201",
+    specialty: "VA & military home loans",
+  },
+  {
+    name: "Patricia Chen",
+    title: "VA Loan Specialist",
+    email: "patricia.chen@mctmortgage.com",
+    phone: "(555) 201-4402",
+    nmls_id: "1928340",
+    specialty: "VA & military home loans",
+  },
+  {
+    name: "David Thompson",
+    title: "FHA Loan Specialist",
+    email: "david.thompson@mctmortgage.com",
+    phone: "(555) 201-4501",
+    nmls_id: "1765092",
+    specialty: "FHA & first-time buyers",
+  },
+  {
+    name: "Maria Santos",
+    title: "FHA Loan Specialist",
+    email: "maria.santos@mctmortgage.com",
+    phone: "(555) 201-4502",
+    nmls_id: "2011847",
+    specialty: "FHA & first-time buyers",
+  },
+  {
+    name: "Sarah Mitchell",
+    title: "Senior Mortgage Specialist",
+    email: "sarah.mitchell@mctmortgage.com",
+    phone: "(555) 201-4601",
+    nmls_id: "1583921",
+    specialty: "Conventional loans",
+  },
+  {
+    name: "Robert Kim",
+    title: "Senior Mortgage Specialist",
+    email: "robert.kim@mctmortgage.com",
+    phone: "(555) 201-4602",
+    nmls_id: "1638475",
+    specialty: "Conventional loans",
+  },
+  {
+    name: "Linda Foster",
+    title: "USDA Loan Specialist",
+    email: "linda.foster@mctmortgage.com",
+    phone: "(555) 201-4701",
+    nmls_id: "1892043",
+    specialty: "USDA rural development loans",
+  },
+  {
+    name: "Mark Williams",
+    title: "USDA Loan Specialist",
+    email: "mark.williams@mctmortgage.com",
+    phone: "(555) 201-4702",
+    nmls_id: "1746298",
+    specialty: "USDA rural development loans",
+  },
+];
+
+const OFFICERS_BY_PRODUCT: Record<string, string[]> = {
   VA: ["James Rodriguez", "Patricia Chen"],
   FHA: ["David Thompson", "Maria Santos"],
   Conventional: ["Sarah Mitchell", "Robert Kim"],
   USDA: ["Linda Foster", "Mark Williams"],
 };
 
+const OFFICERS_BY_NAME = new Map(OFFICER_ROSTER.map((o) => [o.name, o]));
+
+/** Look up full loan-officer details by display name (pipeline stores name only). */
+export function getOfficerProfile(name: string | null | undefined): OfficerProfile | null {
+  if (!name) return null;
+  return OFFICERS_BY_NAME.get(name) ?? null;
+}
+
 export function routeToOfficer(
   input: Record<string, unknown>,
   profile: PrequalProfile,
   rng: () => number = Math.random,
-): { profile: PrequalProfile; assigned_officer: string } {
-  const list = OFFICERS[input.loan_product as string] ?? ["Sarah Mitchell"];
+): { profile: PrequalProfile; assigned_officer: string; officer: OfficerProfile } {
+  const list = OFFICERS_BY_PRODUCT[input.loan_product as string] ?? ["Sarah Mitchell"];
   const assigned = list[Math.floor(rng() * list.length)];
-  return { assigned_officer: assigned, profile: { ...profile, assigned_officer: assigned } };
+  const officer = OFFICERS_BY_NAME.get(assigned)!;
+  return {
+    assigned_officer: assigned,
+    officer,
+    profile: { ...profile, assigned_officer: assigned },
+  };
+}
+
+/** Read loan-match fields carried on profile (in-memory / client round-trip). */
+export function extractLoanMatchFromProfile(
+  profile: Record<string, unknown>,
+): LoanMatch | null {
+  const product_type = profile.product_type as string | undefined;
+  const prequal_amount = profile.prequal_amount as number | undefined;
+  const loan_amount = profile.loan_amount as number | undefined;
+  const down_payment = profile.down_payment as number | undefined;
+  const ltv = profile.ltv as number | undefined;
+  const estimated_rate = profile.estimated_rate as number | undefined;
+  const monthly_payment = profile.monthly_payment as number | undefined;
+
+  if (
+    !product_type ||
+    prequal_amount == null ||
+    loan_amount == null ||
+    down_payment == null ||
+    ltv == null ||
+    estimated_rate == null ||
+    monthly_payment == null
+  ) {
+    return null;
+  }
+
+  return {
+    product_type,
+    prequal_amount,
+    loan_amount,
+    down_payment,
+    ltv,
+    estimated_rate,
+    monthly_payment,
+  };
+}
+
+/** Build loan match from letter + profile when match_loan_products was skipped. */
+export function buildLoanMatchFromLetter(
+  letter: LetterData,
+  profile: PrequalProfile,
+): LoanMatch {
+  const price = letter.purchase_price || profile.target_price || letter.prequal_amount;
+  const down = profile.down_payment ?? Math.max(0, price - letter.prequal_amount);
+  const loan_amount = Math.max(0, price - down);
+
+  if (profile.annual_income && profile.credit_tier) {
+    const { match } = matchLoanProducts(
+      {
+        target_price: price,
+        down_payment: down,
+        annual_income: profile.annual_income,
+        credit_tier: profile.credit_tier,
+        is_veteran: profile.is_veteran ?? false,
+        monthly_debts: profile.monthly_debts ?? 0,
+      },
+      profile,
+    );
+    return {
+      ...match,
+      product_type: letter.loan_product,
+      prequal_amount: letter.prequal_amount,
+    };
+  }
+
+  const ltv = price > 0 ? Math.round((loan_amount / price) * 100) : 0;
+  return {
+    product_type: letter.loan_product,
+    prequal_amount: letter.prequal_amount,
+    loan_amount,
+    down_payment: down,
+    ltv,
+    estimated_rate: 7.0,
+    monthly_payment: 0,
+  };
+}
+
+/**
+ * Resolve the loan match to persist after an agent turn.
+ * Handles letter-only turns where match_loan_products ran in a prior request.
+ */
+export function resolveLoanMatchForPersist(
+  loanMatch: LoanMatch | null | undefined,
+  profile: Record<string, unknown>,
+  letterData: LetterData | null,
+): LoanMatch | null {
+  if (loanMatch) return loanMatch;
+
+  const fromProfile = extractLoanMatchFromProfile(profile);
+  if (fromProfile) return fromProfile;
+
+  if (letterData) {
+    return buildLoanMatchFromLetter(letterData, profile as PrequalProfile);
+  }
+
+  return null;
 }
 
 /** Build the row shape persisted to prequal_loan_matches (LO pipeline). */
@@ -254,6 +465,7 @@ export function buildPipelineMatchRow(
   return {
     session_id: sessionId,
     borrower_name: profile.borrower_name ?? null,
+    borrower_email: profile.borrower_email ?? null,
     product_type: loanMatch.product_type,
     prequal_amount: loanMatch.prequal_amount,
     loan_amount: loanMatch.loan_amount,
@@ -277,9 +489,10 @@ export interface PipelineStats {
 export function computePipelineStats(rows: Pick<PipelineRow, "status" | "prequal_amount">[]): PipelineStats {
   const total = rows.length;
   const qualified = rows.filter((r) => r.status === "qualified").length;
-  const pending = rows.filter((r) => r.status === "pending").length;
-  const avgPrequal = total
-    ? Math.round(rows.reduce((s, r) => s + r.prequal_amount, 0) / total)
+  const pending = rows.filter((r) => r.status === "pending" || r.status === "inquiry").length;
+  const withAmount = rows.filter((r) => r.prequal_amount != null && r.prequal_amount > 0);
+  const avgPrequal = withAmount.length
+    ? Math.round(withAmount.reduce((s, r) => s + (r.prequal_amount ?? 0), 0) / withAmount.length)
     : 0;
   return { total, qualified, pending, avgPrequal };
 }
@@ -435,9 +648,17 @@ export function executeTool(
   }
 
   if (name === "route_to_officer") {
-    const { profile: updated, assigned_officer } = routeToOfficer(input, p);
+    const { profile: updated, assigned_officer, officer } = routeToOfficer(input, p);
     return {
-      result: JSON.stringify({ assigned_officer, followup_hours: 24 }),
+      result: JSON.stringify({
+        assigned_officer,
+        title: officer.title,
+        email: officer.email,
+        phone: officer.phone,
+        nmls_id: officer.nmls_id,
+        specialty: officer.specialty,
+        followup_hours: 24,
+      }),
       profile: updated as Record<string, unknown>,
     };
   }

@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,18 +10,69 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Link } from "react-router-dom";
 import { usePrequalPipeline } from "@/hooks/usePrequalPipeline";
 import { MessageSquarePlus } from "lucide-react";
+
+const PAGE_SIZE = 20;
+
+type StatusFilter = "all" | "qualified" | "pending";
+
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "qualified", label: "Qualified" },
+  { value: "pending", label: "Pending" },
+];
 
 export default function PrequalDashboard() {
   const { pipeline, isLoading, stats, selected, documents, toggleSelect, dtiColorClass } =
     usePrequalPipeline();
 
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [page, setPage] = useState(1);
+
+  const filteredPipeline = useMemo(() => {
+    if (statusFilter === "qualified") {
+      return pipeline.filter((r) => r.status === "qualified");
+    }
+    if (statusFilter === "pending") {
+      // Group inquiry with pending to match the "Pending Review" stat.
+      return pipeline.filter((r) => r.status === "pending" || r.status === "inquiry");
+    }
+    return pipeline;
+  }, [pipeline, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPipeline.length / PAGE_SIZE));
+
+  // Reset to the first page whenever the filter changes.
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
+
+  // Clamp the page if the list shrinks (e.g. realtime update).
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const startIndex = (page - 1) * PAGE_SIZE;
+  const pagedPipeline = useMemo(
+    () => filteredPipeline.slice(startIndex, startIndex + PAGE_SIZE),
+    [filteredPipeline, startIndex],
+  );
+
   const statusBadge = (status: string) => {
     const map: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       qualified: "default",
       pending: "secondary",
+      inquiry: "outline",
       referred: "outline",
       declined: "destructive",
     };
@@ -41,7 +93,7 @@ export default function PrequalDashboard() {
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link to="/prequal">
+          <Link to="/prequal?new=1">
             <MessageSquarePlus className="w-4 h-4 mr-2" />
             New Pre-Qual Chat
           </Link>
@@ -73,10 +125,25 @@ export default function PrequalDashboard() {
       <div className="flex flex-col lg:flex-row gap-6">
         <Card className="flex-1">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              Pipeline
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse ml-1" />
-            </CardTitle>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                Pipeline
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse ml-1" />
+              </CardTitle>
+              <div className="flex items-center gap-1">
+                {STATUS_FILTERS.map((f) => (
+                  <Button
+                    key={f.value}
+                    size="sm"
+                    variant={statusFilter === f.value ? "default" : "ghost"}
+                    className="h-7 px-3 text-xs"
+                    onClick={() => setStatusFilter(f.value)}
+                  >
+                    {f.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (
@@ -91,51 +158,117 @@ export default function PrequalDashboard() {
                   <Link to="/prequal">Start Alex Chat</Link>
                 </Button>
               </div>
+            ) : filteredPipeline.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground gap-2">
+                <p className="text-sm">No {statusFilter} borrowers in the pipeline.</p>
+                <Button size="sm" variant="ghost" onClick={() => setStatusFilter("all")}>
+                  Clear filter
+                </Button>
+              </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Borrower</TableHead>
-                    <TableHead>Loan</TableHead>
-                    <TableHead>Pre-Qual</TableHead>
-                    <TableHead>Payment</TableHead>
-                    <TableHead>DTI</TableHead>
-                    <TableHead>Credit</TableHead>
-                    <TableHead>Officer</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pipeline.map((row) => (
-                    <TableRow
-                      key={row.id ?? row.session_id}
-                      className={`cursor-pointer ${selected?.session_id === row.session_id ? "bg-muted/50" : ""}`}
-                      onClick={() => toggleSelect(row)}
-                    >
-                      <TableCell className="font-medium">
-                        {row.borrower_name ?? "Anonymous"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{row.product_type}</Badge>
-                      </TableCell>
-                      <TableCell className="font-bold">
-                        ${row.prequal_amount.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        ${row.monthly_payment.toLocaleString()}/mo
-                      </TableCell>
-                      <TableCell>
-                        <span className={dtiColorClass(row.back_dti)}>
-                          {row.back_dti ? `${row.back_dti.toFixed(1)}%` : "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="capitalize">{row.credit_tier ?? "—"}</TableCell>
-                      <TableCell className="text-xs">{row.assigned_officer ?? "—"}</TableCell>
-                      <TableCell>{statusBadge(row.status)}</TableCell>
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Borrower</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Loan</TableHead>
+                      <TableHead>Pre-Qual</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead>DTI</TableHead>
+                      <TableHead>Credit</TableHead>
+                      <TableHead>Officer</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {pagedPipeline.map((row) => (
+                      <TableRow
+                        key={row.id ?? row.session_id}
+                        className={`cursor-pointer ${selected?.session_id === row.session_id ? "bg-muted/50" : ""}`}
+                        onClick={() => toggleSelect(row)}
+                      >
+                        <TableCell className="font-medium">
+                          {row.borrower_name ?? "Anonymous"}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[140px] truncate">
+                          {row.borrower_email ?? "—"}
+                        </TableCell>
+                        <TableCell>
+                          {row.product_type ? (
+                            <Badge variant="outline">{row.product_type}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-bold">
+                          {row.prequal_amount != null
+                            ? `$${row.prequal_amount.toLocaleString()}`
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {row.monthly_payment != null
+                            ? `$${row.monthly_payment.toLocaleString()}/mo`
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <span className={dtiColorClass(row.back_dti)}>
+                            {row.back_dti ? `${row.back_dti.toFixed(1)}%` : "—"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="capitalize">{row.credit_tier ?? "—"}</TableCell>
+                        <TableCell className="text-xs">{row.assigned_officer ?? "—"}</TableCell>
+                        <TableCell>{statusBadge(row.status)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {filteredPipeline.length > PAGE_SIZE && (
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-4 py-3 border-t">
+                    <p className="text-xs text-muted-foreground">
+                      Showing {startIndex + 1}–
+                      {Math.min(startIndex + PAGE_SIZE, filteredPipeline.length)} of{" "}
+                      {filteredPipeline.length}
+                    </p>
+                    <Pagination className="mx-0 w-auto justify-end">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            className={
+                              page === 1
+                                ? "pointer-events-none opacity-50"
+                                : "cursor-pointer"
+                            }
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                          />
+                        </PaginationItem>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                          <PaginationItem key={p}>
+                            <PaginationLink
+                              isActive={p === page}
+                              className="cursor-pointer"
+                              onClick={() => setPage(p)}
+                            >
+                              {p}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            className={
+                              page === totalPages
+                                ? "pointer-events-none opacity-50"
+                                : "cursor-pointer"
+                            }
+                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -151,10 +284,11 @@ export default function PrequalDashboard() {
             <CardContent className="space-y-4 text-xs">
               <div className="space-y-2">
                 {[
-                  ["Loan Product", selected.product_type],
-                  ["Pre-Qual Amount", `$${selected.prequal_amount.toLocaleString()}`],
-                  ["Est. Rate", `${selected.estimated_rate}%`],
-                  ["Monthly Payment", `$${selected.monthly_payment.toLocaleString()}/mo`],
+                  ["Loan Product", selected.product_type ?? "—"],
+                  ["Email", selected.borrower_email ?? "—"],
+                  ["Pre-Qual Amount", selected.prequal_amount != null ? `$${selected.prequal_amount.toLocaleString()}` : "—"],
+                  ["Est. Rate", selected.estimated_rate != null ? `${selected.estimated_rate}%` : "—"],
+                  ["Monthly Payment", selected.monthly_payment != null ? `$${selected.monthly_payment.toLocaleString()}/mo` : "—"],
                   ["Back-end DTI", selected.back_dti ? `${selected.back_dti.toFixed(1)}%` : "—"],
                   ["Credit Tier", selected.credit_tier ?? "—"],
                   ["Assigned LO", selected.assigned_officer ?? "Unassigned"],

@@ -126,6 +126,12 @@ export const queryKeys = {
     detail: (id: string) => ["borrowerCommunications", "detail", id] as const,
   },
 
+  prequal: {
+    sessions: (userId: string) => ["prequal", "sessions", userId] as const,
+    messages: (sessionId: string) => ["prequal", "messages", sessionId] as const,
+    session: (sessionId: string) => ["prequal", "session", sessionId] as const,
+  },
+
   // Pricing & Rate Lock
   pricing: {
     rateSheets: {

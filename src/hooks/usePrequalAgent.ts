@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { logCrud } from "@/lib/activity-logger";
+import { formatUserFacingAiError } from "@/lib/edgeFunctionUtils";
 
 export interface Message {
   role: "user" | "assistant";
@@ -89,7 +90,18 @@ export function usePrequalAgent() {
           },
         });
 
-        if (fnError) throw fnError;
+        if (fnError) {
+          const ctx = (fnError as { context?: Response }).context;
+          if (ctx) {
+            try {
+              const body = await ctx.json() as { error?: string };
+              if (body?.error) throw new Error(body.error);
+            } catch (parseErr) {
+              if (parseErr instanceof Error && parseErr.message !== fnError.message) throw parseErr;
+            }
+          }
+          throw fnError;
+        }
         if (data?.error) throw new Error(data.error);
 
         setMessages((prev) => [...prev, { role: "assistant", content: data.message }]);
@@ -105,10 +117,12 @@ export function usePrequalAgent() {
         }
       } catch (err) {
         console.error("Prequal agent error:", err);
-        setError("Something went wrong. Please try again.");
+        const raw = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const message = formatUserFacingAiError(raw);
+        setError(message);
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: "Sorry, I encountered an error. Please try again." },
+          { role: "assistant", content: `Sorry, I encountered an error: ${message}` },
         ]);
       } finally {
         setLoading(false);

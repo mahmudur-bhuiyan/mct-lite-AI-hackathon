@@ -275,7 +275,7 @@ serve(async (req) => {
 
       // Respect explicit provider when it's ready; otherwise fail over (Lovable first).
       if (!isReady(resolvedProvider)) {
-        const fallbackOrder: LlmProvider[] = ['lovable', 'google', 'openai', 'anthropic', 'perplexity'];
+        const fallbackOrder: LlmProvider[] = ['lovable', 'openai', 'google', 'anthropic', 'perplexity'];
         const fallback = fallbackOrder.find(isReady);
         if (fallback) {
           resolvedProvider = fallback;

@@ -23,7 +23,6 @@ export default function PrequalChat() {
     letterData,
     documentGaps,
     assignedOfficer,
-    error,
     sendMessage,
     resetSession,
   } = usePrequalAgent();
@@ -162,7 +161,7 @@ export default function PrequalChat() {
                   }}
                 />
                 {msg.role === "user" && (
-                  <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 mt-1">
+                  <div className="w-8 h-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center flex-shrink-0 mt-1">
                     <User className="w-4 h-4" />
                   </div>
                 )}
@@ -186,7 +185,6 @@ export default function PrequalChat() {
                 </div>
               </div>
             )}
-            {error && <p className="text-center text-xs text-destructive">{error}</p>}
             <div ref={bottomRef} />
           </div>
         </ScrollArea>

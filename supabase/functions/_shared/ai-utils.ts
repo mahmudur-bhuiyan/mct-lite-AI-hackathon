@@ -610,6 +610,8 @@ export async function routedChatCompletion(
   const temperature = typeof providerConfig.temperature === 'number' ? providerConfig.temperature : undefined;
   const max_tokens = typeof providerConfig.max_tokens === 'number' ? providerConfig.max_tokens : undefined;
   const provider_model = (providerConfig.provider_model as string | undefined) ?? model;
+  const tools = Array.isArray(providerConfig.tools) ? providerConfig.tools as ToolDefinition[] : undefined;
+  const tool_choice = providerConfig.tool_choice as ChatCompletionOptions['tool_choice'] | undefined;
 
   let provider = requestedProvider;
   let apiKey = await getProviderApiKey(provider);
@@ -650,7 +652,13 @@ export async function routedChatCompletion(
 
   // Default: OpenAI
   const resolvedModel = model ?? 'gpt-4o-mini';
-  const raw = await chatCompletion(apiKey, messages, { model: resolvedModel, temperature, max_tokens });
+  const raw = await chatCompletion(apiKey, messages, {
+    model: resolvedModel,
+    temperature,
+    max_tokens,
+    tools,
+    tool_choice,
+  });
   const choices = (raw.choices as Array<{ message?: { content?: string } }> | undefined) ?? [];
   const output = choices[0]?.message?.content ?? '';
   const usage = raw.usage as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined;

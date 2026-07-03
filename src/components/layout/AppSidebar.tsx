@@ -152,6 +152,22 @@ const aiToolsItems: SidebarItem[] = [
   },
 ];
 
+function pathMatchesHref(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** Prefer the longest matching sibling href (e.g. /prequal/dashboard over /prequal). */
+function isNavItemActive(pathname: string, item: SidebarItem, siblings: SidebarItem[]): boolean {
+  if (!pathMatchesHref(pathname, item.href)) return false;
+  const hasMoreSpecificSibling = siblings.some(
+    (other) =>
+      other.href !== item.href &&
+      other.href.startsWith(`${item.href}/`) &&
+      pathMatchesHref(pathname, other.href),
+  );
+  return !hasMoreSpecificSibling;
+}
+
 export function AppSidebar() {
   const location = useLocation();
   const { profile } = useAuth();
@@ -243,10 +259,9 @@ export function AppSidebar() {
     }));
   };
 
-  const renderNavItem = (item: SidebarItem) => {
+  const renderNavItem = (item: SidebarItem, siblings: SidebarItem[]) => {
     const Icon = item.icon;
-    const isActive = location.pathname === item.href ||
-                     location.pathname.startsWith(item.href + "/");
+    const isActive = isNavItemActive(location.pathname, item, siblings);
     const hasChildren = Boolean(item.children?.length);
     const sectionExpanded = isSectionExpanded(item);
 
@@ -318,7 +333,6 @@ export function AppSidebar() {
                     {item.badge}
                   </span>
                 )}
-                {isActive && <ChevronRight className="h-4 w-4 text-white/70" />}
               </>
             )}
           </Link>
@@ -445,7 +459,7 @@ export function AppSidebar() {
               </div>
             )}
             <div className="space-y-1">
-              {visibleNavItems.map(renderNavItem)}
+              {visibleNavItems.map((item) => renderNavItem(item, visibleNavItems))}
             </div>
           </div>
 
@@ -462,7 +476,7 @@ export function AppSidebar() {
                 </div>
               )}
               <div className="space-y-1">
-                {visibleAIItems.map(renderNavItem)}
+                {visibleAIItems.map((item) => renderNavItem(item, visibleAIItems))}
               </div>
             </div>
           )}

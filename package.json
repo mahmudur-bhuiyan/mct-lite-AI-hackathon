@@ -11,7 +11,8 @@
     "test": "vitest run",
     "preview": "vite preview",
     "setup:demo-users": "tsx scripts/setup-demo-users.ts",
-    "smoke:phase3": "node scripts/phase3-smoke.mjs"
+    "smoke:phase3": "node scripts/phase3-smoke.mjs",
+    "smoke:prequal": "npx tsx scripts/prequal-smoke.ts"
   },
   "dependencies": {
     "@azure/msal-browser": "^4.27.0",

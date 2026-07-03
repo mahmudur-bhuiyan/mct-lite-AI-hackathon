@@ -1,8 +1,6 @@
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -11,87 +9,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-interface PipelineRow {
-  id: string;
-  session_id: string;
-  borrower_name: string | null;
-  product_type: string;
-  prequal_amount: number;
-  loan_amount: number;
-  estimated_rate: number;
-  monthly_payment: number;
-  back_dti: number | null;
-  credit_tier: string | null;
-  status: string;
-  letter_generated: boolean;
-  assigned_officer: string | null;
-  created_at: string;
-}
-
-interface DocumentItem {
-  document_name: string;
-  collected: boolean;
-}
-
-async function fetchPipeline(): Promise<PipelineRow[]> {
-  const { data, error } = await supabase
-    .from("prequal_loan_matches")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(100);
-  if (error) throw error;
-  return (data ?? []) as PipelineRow[];
-}
-
-async function fetchDocuments(sessionId: string): Promise<DocumentItem[]> {
-  const { data } = await supabase
-    .from("prequal_document_items")
-    .select("document_name, collected")
-    .eq("session_id", sessionId);
-  return (data ?? []) as DocumentItem[];
-}
+import { Link } from "react-router-dom";
+import { usePrequalPipeline } from "@/hooks/usePrequalPipeline";
+import { MessageSquarePlus } from "lucide-react";
 
 export default function PrequalDashboard() {
-  const queryClient = useQueryClient();
-  const [selected, setSelected] = useState<PipelineRow | null>(null);
-
-  const { data: pipeline = [], isLoading } = useQuery({
-    queryKey: ["prequal-pipeline"],
-    queryFn: fetchPipeline,
-    refetchInterval: 30000,
-  });
-
-  const { data: documents = [] } = useQuery({
-    queryKey: ["prequal-docs", selected?.session_id],
-    queryFn: () => (selected ? fetchDocuments(selected.session_id) : Promise.resolve([])),
-    enabled: !!selected,
-  });
-
-  useEffect(() => {
-    const channel = supabase
-      .channel("prequal-pipeline-rt")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "prequal_loan_matches" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["prequal-pipeline"] });
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [queryClient]);
-
-  const stats = {
-    total: pipeline.length,
-    qualified: pipeline.filter((r) => r.status === "qualified").length,
-    pending: pipeline.filter((r) => r.status === "pending").length,
-    avgPrequal: pipeline.length
-      ? Math.round(pipeline.reduce((s, r) => s + r.prequal_amount, 0) / pipeline.length)
-      : 0,
-  };
+  const { pipeline, isLoading, stats, selected, documents, toggleSelect, dtiColorClass } =
+    usePrequalPipeline();
 
   const statusBadge = (status: string) => {
     const map: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -109,11 +33,19 @@ export default function PrequalDashboard() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Pre-Qualification Pipeline</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          AI-generated borrower profiles · Live updates
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">LO Pipeline</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            AI pre-qualification leads · Updates when borrowers chat with Alex
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/prequal">
+            <MessageSquarePlus className="w-4 h-4 mr-2" />
+            New Pre-Qual Chat
+          </Link>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -152,9 +84,12 @@ export default function PrequalDashboard() {
                 Loading pipeline...
               </div>
             ) : pipeline.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground gap-1">
+              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground gap-2">
                 <p className="text-sm">No borrowers yet.</p>
-                <p className="text-xs">Pre-qualifications appear here in real time.</p>
+                <p className="text-xs">Complete a chat at Pre-Qualification to populate this pipeline.</p>
+                <Button asChild size="sm" variant="secondary">
+                  <Link to="/prequal">Start Alex Chat</Link>
+                </Button>
               </div>
             ) : (
               <Table>
@@ -173,9 +108,9 @@ export default function PrequalDashboard() {
                 <TableBody>
                   {pipeline.map((row) => (
                     <TableRow
-                      key={row.id}
-                      className={`cursor-pointer ${selected?.id === row.id ? "bg-muted/50" : ""}`}
-                      onClick={() => setSelected(selected?.id === row.id ? null : row)}
+                      key={row.id ?? row.session_id}
+                      className={`cursor-pointer ${selected?.session_id === row.session_id ? "bg-muted/50" : ""}`}
+                      onClick={() => toggleSelect(row)}
                     >
                       <TableCell className="font-medium">
                         {row.borrower_name ?? "Anonymous"}
@@ -190,15 +125,7 @@ export default function PrequalDashboard() {
                         ${row.monthly_payment.toLocaleString()}/mo
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={
-                            row.back_dti && row.back_dti > 43
-                              ? "text-red-500 font-semibold"
-                              : row.back_dti && row.back_dti > 36
-                                ? "text-amber-500 font-semibold"
-                                : "text-green-600 font-semibold"
-                          }
-                        >
+                        <span className={dtiColorClass(row.back_dti)}>
                           {row.back_dti ? `${row.back_dti.toFixed(1)}%` : "—"}
                         </span>
                       </TableCell>
@@ -231,6 +158,7 @@ export default function PrequalDashboard() {
                   ["Back-end DTI", selected.back_dti ? `${selected.back_dti.toFixed(1)}%` : "—"],
                   ["Credit Tier", selected.credit_tier ?? "—"],
                   ["Assigned LO", selected.assigned_officer ?? "Unassigned"],
+                  ["Letter", selected.letter_generated ? "Generated" : "Pending"],
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between border-b pb-1 last:border-0">
                     <span className="text-muted-foreground">{k}</span>

@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { validatePhone } from "@/lib/validation";
 import {
   Send,
   Download,
@@ -115,6 +116,7 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
   const [input, setInput] = useState("");
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
   const [intakeError, setIntakeError] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const busy = loading || isStreaming;
@@ -144,8 +146,17 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
   const handleGuestStart = async (e: React.FormEvent) => {
     e.preventDefault();
     setIntakeError("");
+    const phone = guestPhone.trim();
+    if (phone && !validatePhone(phone)) {
+      setIntakeError("Please enter a valid phone number");
+      return;
+    }
     try {
-      await startGuestSession({ name: guestName, email: guestEmail });
+      await startGuestSession({
+        name: guestName,
+        email: guestEmail,
+        ...(phone ? { phone } : {}),
+      });
     } catch (err) {
       setIntakeError(err instanceof Error ? err.message : "Could not start chat");
     }
@@ -272,7 +283,9 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
                   </p>
                 )}
                 <div className="space-y-2">
-                  <Label htmlFor="guest-name">Full name</Label>
+                  <Label htmlFor="guest-name">
+                    Full name <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="guest-name"
                     value={guestName}
@@ -283,7 +296,9 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="guest-email">Email</Label>
+                  <Label htmlFor="guest-email">
+                    Email <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="guest-email"
                     type="email"
@@ -292,6 +307,18 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
                     placeholder="you@example.com"
                     required
                     disabled={loading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="guest-phone">Phone number</Label>
+                  <Input
+                    id="guest-phone"
+                    type="tel"
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                    placeholder="(555) 123-4567"
+                    disabled={loading}
+                    autoComplete="tel"
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
@@ -548,6 +575,7 @@ function ScorecardSidebar({
           <div className="space-y-2 text-xs">
             <MetricRow label="Name" value={profile.borrower_name ?? "—"} />
             <MetricRow label="Email" value={profile.borrower_email ?? "—"} />
+            <MetricRow label="Phone" value={profile.borrower_phone ?? "—"} />
             <MetricRow
               label="Annual Income"
               value={profile.annual_income ? `$${profile.annual_income.toLocaleString()}` : "—"}

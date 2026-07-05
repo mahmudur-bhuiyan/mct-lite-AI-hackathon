@@ -6,6 +6,7 @@
 export const PROFILE_COLUMNS = new Set([
   "borrower_name",
   "borrower_email",
+  "borrower_phone",
   "annual_income",
   "monthly_debts",
   "assets",
@@ -23,6 +24,7 @@ export const PROFILE_COLUMNS = new Set([
 export interface PrequalProfile {
   borrower_name?: string;
   borrower_email?: string;
+  borrower_phone?: string;
   annual_income?: number;
   monthly_debts?: number;
   assets?: number;

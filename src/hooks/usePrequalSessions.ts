@@ -30,6 +30,7 @@ export interface PrequalSessionDetails {
 interface PrequalProfileRow {
   borrower_name?: string | null;
   borrower_email?: string | null;
+  borrower_phone?: string | null;
   annual_income?: number | null;
   monthly_debts?: number | null;
   assets?: number | null;
@@ -67,6 +68,7 @@ function mapProfile(row: PrequalProfileRow | null): PrequalProfile {
   return {
     borrower_name: row.borrower_name ?? undefined,
     borrower_email: row.borrower_email ?? undefined,
+    borrower_phone: row.borrower_phone ?? undefined,
     annual_income: row.annual_income ?? undefined,
     monthly_debts: row.monthly_debts ?? undefined,
     assets: row.assets ?? undefined,

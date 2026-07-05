@@ -57,6 +57,7 @@ export type PrequalAgentMode = "authenticated" | "guest";
 export interface PrequalContact {
   name: string;
   email: string;
+  phone?: string;
 }
 
 export interface Message {
@@ -79,6 +80,7 @@ export interface PrequalProfile {
   back_dti?: number;
   borrower_name?: string;
   borrower_email?: string;
+  borrower_phone?: string;
   assigned_officer?: string;
 }
 
@@ -112,6 +114,7 @@ interface GuestSessionStored {
   sessionToken: string;
   name: string;
   email: string;
+  phone?: string;
 }
 
 interface UsePrequalAgentOptions {
@@ -208,6 +211,7 @@ export function usePrequalAgent(options: UsePrequalAgentOptions = {}) {
       setProfile({
         borrower_name: stored.name,
         borrower_email: stored.email,
+        borrower_phone: stored.phone,
       });
       setGuestReady(true);
     } catch {
@@ -304,13 +308,14 @@ export function usePrequalAgent(options: UsePrequalAgentOptions = {}) {
   const startGuestSession = useCallback(async (guest: PrequalContact) => {
     const name = guest.name.trim();
     const email = guest.email.trim().toLowerCase();
+    const phone = guest.phone?.trim() || undefined;
     if (!name || !email) throw new Error("Name and email are required");
 
     setLoading(true);
     setError(null);
     try {
       const { data, error: fnError } = await supabase.functions.invoke("prequal-agent", {
-        body: { init_guest: { name, email } },
+        body: { init_guest: { name, email, ...(phone ? { phone } : {}) } },
       });
       if (fnError) await parseInvokeError(fnError);
       if (data?.error) throw new Error(data.error);
@@ -322,7 +327,13 @@ export function usePrequalAgent(options: UsePrequalAgentOptions = {}) {
       setSessionToken(data.session_token);
       setContactName(name);
       setContactEmail(email);
-      setProfile((data.profile as PrequalProfile) ?? { borrower_name: name, borrower_email: email });
+      setProfile(
+        (data.profile as PrequalProfile) ?? {
+          borrower_name: name,
+          borrower_email: email,
+          ...(phone ? { borrower_phone: phone } : {}),
+        },
+      );
       setGuestReady(true);
       setMessages([INITIAL_MESSAGE]);
 
@@ -331,6 +342,7 @@ export function usePrequalAgent(options: UsePrequalAgentOptions = {}) {
         sessionToken: data.session_token,
         name,
         email,
+        ...(phone ? { phone } : {}),
       };
       localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(stored));
     } finally {
@@ -427,6 +439,7 @@ export function usePrequalAgent(options: UsePrequalAgentOptions = {}) {
             sessionToken: data.session_token,
             name: contactName,
             email: contactEmail,
+            ...(profile.borrower_phone ? { phone: profile.borrower_phone } : {}),
           };
           localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(stored));
         }

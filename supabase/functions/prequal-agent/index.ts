@@ -171,13 +171,22 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
-function buildSystemPrompt(contact?: { name?: string; email?: string; isGuest?: boolean }): string {
+function isValidPhone(phone: string): boolean {
+  const trimmed = phone.trim();
+  if (!trimmed) return false;
+  return /^\+?[\d\s\-()]+$/.test(trimmed);
+}
+
+function buildSystemPrompt(contact?: { name?: string; email?: string; phone?: string; isGuest?: boolean }): string {
   let extra = "";
   if (contact?.name) {
     extra += `\n\n## Contact on file\n- Name: ${contact.name} — you may greet them by first name, but you MUST still ask them to confirm their full legal name before calling generate_prequal_letter.\n`;
   }
   if (contact?.email) {
     extra += `- Email: ${contact.email} (on file for their loan officer; do not repeat the full email unless confirming contact preferences)\n`;
+  }
+  if (contact?.phone) {
+    extra += `- Phone: ${contact.phone} (on file for follow-up; do not repeat unless confirming contact preferences)\n`;
   }
   if (contact?.isGuest) {
     extra += `- This borrower is chatting without an account. After pre-qualification (or if they pause), warmly suggest they sign in or create an account so their loan officer can follow up and they can track their application.\n`;
@@ -187,7 +196,7 @@ function buildSystemPrompt(contact?: { name?: string; email?: string; isGuest?: 
 
 function toChatMessages(
   messages: Array<{ role: string; content: string }>,
-  contact?: { name?: string; email?: string; isGuest?: boolean },
+  contact?: { name?: string; email?: string; phone?: string; isGuest?: boolean },
 ): ChatMessage[] {
   return [
     { role: "system", content: buildSystemPrompt(contact) },
@@ -284,13 +293,14 @@ serve(async (req) => {
       session_token?: string;
       profile?: Record<string, unknown>;
       user_message?: string;
-      init_guest?: { name?: string; email?: string };
-      contact?: { name?: string; email?: string };
+      init_guest?: { name?: string; email?: string; phone?: string };
+      contact?: { name?: string; email?: string; phone?: string };
     };
 
     type GuestContext = {
       guestName: string;
       guestEmail: string;
+      guestPhone?: string;
       isGuest: true;
     };
     type UserContext = {
@@ -327,8 +337,16 @@ serve(async (req) => {
       if (init_guest?.name && init_guest?.email) {
       const guestName = String(init_guest.name).trim().slice(0, 120);
       const guestEmail = String(init_guest.email).trim().toLowerCase().slice(0, 254);
+      const guestPhoneRaw = init_guest.phone ? String(init_guest.phone).trim().slice(0, 50) : "";
+      const guestPhone = guestPhoneRaw || undefined;
       if (!guestName || !isValidEmail(guestEmail)) {
         return new Response(JSON.stringify({ error: "Valid name and email are required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (guestPhone && !isValidPhone(guestPhone)) {
+        return new Response(JSON.stringify({ error: "Invalid phone number" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -339,6 +357,7 @@ serve(async (req) => {
           user_id: null,
           guest_name: guestName,
           guest_email: guestEmail,
+          guest_phone: guestPhone ?? null,
           status: "active",
         })
         .select("id, session_token")
@@ -350,17 +369,19 @@ serve(async (req) => {
         ...profile,
         borrower_name: guestName,
         borrower_email: guestEmail,
+        ...(guestPhone ? { borrower_phone: guestPhone } : {}),
       };
       await supabase.from("prequal_profiles").upsert(
         {
           session_id: sessionId,
           borrower_name: guestName,
           borrower_email: guestEmail,
+          borrower_phone: guestPhone ?? null,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "session_id" },
       );
-      actor = { guestName, guestEmail, isGuest: true };
+      actor = { guestName, guestEmail, guestPhone, isGuest: true };
 
       return new Response(
         JSON.stringify({
@@ -375,7 +396,7 @@ serve(async (req) => {
       } else if (session_id && session_token) {
       const { data: session, error: sessionError } = await supabase
         .from("prequal_sessions")
-        .select("id, session_token, guest_name, guest_email, user_id")
+        .select("id, session_token, guest_name, guest_email, guest_phone, user_id")
         .eq("id", session_id)
         .single();
       if (sessionError || !session || session.session_token !== session_token || session.user_id) {
@@ -389,10 +410,12 @@ serve(async (req) => {
       actor = {
         guestName: session.guest_name ?? "Guest",
         guestEmail: session.guest_email ?? "",
+        guestPhone: session.guest_phone ?? undefined,
         isGuest: true,
       };
       if (!profile.borrower_name && session.guest_name) profile.borrower_name = session.guest_name;
       if (!profile.borrower_email && session.guest_email) profile.borrower_email = session.guest_email;
+      if (!profile.borrower_phone && session.guest_phone) profile.borrower_phone = session.guest_phone;
       } else {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
@@ -423,13 +446,19 @@ serve(async (req) => {
     if (actor.isGuest) {
       if (actor.guestName) profile.borrower_name = profile.borrower_name ?? actor.guestName;
       if (actor.guestEmail) profile.borrower_email = profile.borrower_email ?? actor.guestEmail;
+      if (actor.guestPhone) profile.borrower_phone = profile.borrower_phone ?? actor.guestPhone;
     } else {
       if (actor.contactName) profile.borrower_name = profile.borrower_name ?? actor.contactName;
       if (actor.contactEmail) profile.borrower_email = profile.borrower_email ?? actor.contactEmail;
     }
 
     const contactContext = actor.isGuest
-      ? { name: actor.guestName, email: actor.guestEmail, isGuest: true as const }
+      ? {
+          name: actor.guestName,
+          email: actor.guestEmail,
+          phone: actor.guestPhone,
+          isGuest: true as const,
+        }
       : { name: actor.contactName, email: actor.contactEmail, isGuest: false as const };
 
     const apiKey = await getOpenAIApiKey();

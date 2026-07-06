@@ -32,7 +32,6 @@ import {
   MessageSquare,
   Info,
   ExternalLink,
-  Home,
   ClipboardList,
 } from "lucide-react";
 
@@ -139,12 +138,6 @@ const aiToolsItems: SidebarItem[] = [
     featureFlag: "enableAIAgents",
   },
   {
-    title: "Pre-Qualification",
-    href: "/prequal",
-    icon: Home,
-    isAI: true,
-  },
-  {
     title: "LO Pipeline",
     href: "/prequal/dashboard",
     icon: ClipboardList,
@@ -196,6 +189,7 @@ export function AppSidebar() {
     "/knowledge",
     "/notifications",
     "/agents",
+    "/prequal/dashboard",
   ]);
   /** Loan officer / branch manager (not platform admin): show a short nav set only. */
   const normalizedRoles = getNormalizedUserRoles(profile);
@@ -209,6 +203,7 @@ export function AppSidebar() {
     "/tasks",
     "/knowledge",
     "/agents",
+    "/prequal/dashboard",
   ]);
   /** App role `user` (support/processor): tasks + knowledge + agents; no AI Chat, action items, or notifications in nav. */
   const isUserRoleLiteNav =
@@ -218,6 +213,7 @@ export function AppSidebar() {
     "/tasks",
     "/knowledge",
     "/agents",
+    "/prequal/dashboard",
   ]);
 
   const agentEnabledMap: Record<string, boolean> = {

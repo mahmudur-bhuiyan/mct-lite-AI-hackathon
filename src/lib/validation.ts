@@ -23,11 +23,23 @@ export function sanitizeString(str: string): string {
   return str.trim().replace(/\s+/g, " ");
 }
 
-// Phone validation
-export const phoneSchema = z.string().regex(/^\+?[\d\s\-()]+$/, "Invalid phone number");
+// Phone validation — 11 digits (leading 1), stored as +1 (555) 123-4567
+export {
+  constrainPhoneInput,
+  formatPhoneDisplay,
+  formatPhoneNumber,
+  getPhoneDigits,
+  isValidPhoneNumber,
+  normalizePhoneForStorage,
+  phoneToInputDisplay,
+  PHONE_FORMAT_EXAMPLE,
+} from "../../supabase/functions/_shared/phone-validation";
+import { isValidPhoneNumber } from "../../supabase/functions/_shared/phone-validation";
+
+export const phoneSchema = z.string().refine(isValidPhoneNumber, "Invalid phone number");
 
 export function validatePhone(phone: string): boolean {
-  return phoneSchema.safeParse(phone).success;
+  return isValidPhoneNumber(phone);
 }
 
 // Form validation helpers

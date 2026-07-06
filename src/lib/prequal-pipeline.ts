@@ -3,6 +3,8 @@ export {
   computePipelineStats,
   dtiColorClass,
   buildPipelineMatchRow,
+  buildPipelineRowFromProfileOnly,
+  normalizePipelineStatus,
   runPrequalScenario,
   type PipelineRow,
   type PipelineStats,

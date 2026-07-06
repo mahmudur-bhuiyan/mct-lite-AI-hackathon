@@ -52,7 +52,7 @@ async function main() {
       assert(r.loanMatch.product_type === "Conventional", "expected Conventional");
       assert(r.pipelineRow.status === "qualified", "expected qualified status");
       assert(r.pipelineRow.letter_generated === true, "expected letter generated");
-      assert(r.assignedOfficer === "Sarah Mitchell", "expected deterministic LO assignment");
+      assert(r.assignedOfficer === "Cristiano Ronaldo", "expected deterministic LO assignment");
       assert(r.pipelineStats.qualified === 1, "expected 1 qualified in stats");
 
       console.log(

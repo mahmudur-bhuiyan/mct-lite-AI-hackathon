@@ -12,6 +12,7 @@ function RedirectWithSearch({ to }: { to: string }) {
 import { AuthProvider } from "@/contexts/AuthContext";
 import { BrandingProvider } from "@/contexts/BrandingContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { GuestOnlyRoute } from "@/components/auth/GuestOnlyRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { ModuleRoute } from "@/components/routing/ModuleRoute";
 import { CalendarRoleRoute } from "@/components/routing/CalendarRoleRoute";
@@ -97,7 +98,6 @@ import AgentDetail from "./pages/AgentDetail";
 import OperationsCalendar from "./pages/OperationsCalendar";
 import UnderwritingQueue from "./pages/UnderwritingQueue";
 import DocumentReviewQueue from "./pages/DocumentReviewQueue";
-import PrequalChat from "./pages/PrequalChat";
 import PrequalDashboard from "./pages/PrequalDashboard";
 
 // Admin docs pages
@@ -126,7 +126,9 @@ const App = () => (
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/auth-callback" element={<MicrosoftAuthCallback />} />
             <Route path="/env-debug" element={<EnvDebug />} />
-            <Route path="/prequal-public" element={<PublicAlexPrequal />} />
+            <Route element={<GuestOnlyRoute />}>
+              <Route path="/prequal-public" element={<PublicAlexPrequal />} />
+            </Route>
             <Route path="/prequal-public/calculator" element={<PublicPrequalCalculator />} />
             <Route path="/mortgage-calculator-widget" element={<MortgageCalculatorWidget />} />
 
@@ -309,8 +311,8 @@ const App = () => (
                   <Route path="/ai/chat" element={<AIChat />} />
                 </Route>
 
-                {/* AI Pre-Qualification Agent (hackathon demo) */}
-                <Route path="/prequal" element={<PrequalChat />} />
+                {/* LO pipeline for Alex guest pre-quals — chat lives at /prequal-public only */}
+                <Route path="/prequal" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/prequal/dashboard" element={<PrequalDashboard />} />
 
                 {/* Admin-only AI agent management routes */}

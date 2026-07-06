@@ -17,7 +17,6 @@ function isChatRoute(pathname: string) {
   return (
     pathname === "/ai" ||
     pathname === "/ai/chat" ||
-    pathname === "/prequal" ||
     /^\/ai\/agents\/[^/]+\/chat$/.test(pathname)
   );
 }

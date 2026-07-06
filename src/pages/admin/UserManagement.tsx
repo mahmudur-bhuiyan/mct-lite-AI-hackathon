@@ -205,15 +205,20 @@ export default function UserManagement() {
         .eq("user_id", selectedUser.id)
         .single();
 
-      const isAppRole = ["admin", "moderator", "user"].includes(editRole);
-      const appRole = isAppRole ? (editRole as "admin" | "moderator" | "user") : "user";
+      const isAppRole = ["admin", "moderator", "user", "loan_officer"].includes(editRole);
+      const appRole = isAppRole
+        ? (editRole as "admin" | "moderator" | "user" | "loan_officer")
+        : "user";
       const customRoleId = isAppRole ? null : editRole;
       const selectedCustomRoleName = customRoleId
         ? customRoles.find((r) => r.id === customRoleId)?.name ?? null
         : null;
 
       const selectedCustomRoleNormalized = normalizeRoleString(selectedCustomRoleName);
-      const requiresBranch = selectedCustomRoleNormalized === "branch_manager" || selectedCustomRoleNormalized === "loan_officer";
+      const requiresBranch =
+        editRole === "loan_officer" ||
+        selectedCustomRoleNormalized === "branch_manager" ||
+        selectedCustomRoleNormalized === "loan_officer";
       const branchIdToSet = selectedBranchId ?? null;
 
       if (requiresBranch && !branchIdToSet) {
@@ -370,10 +375,7 @@ export default function UserManagement() {
     return app?.label ?? user.role ?? "user";
   };
 
-  // Hide legacy "user"-role accounts from the admin list — module not in use.
-  const visibleUsers = users.filter((u) => u.role !== "user");
-
-  const filteredUsers = visibleUsers.filter(
+  const filteredUsers = users.filter(
     (user) =>
       user.email.toLowerCase().includes(search.toLowerCase()) ||
       user.full_name?.toLowerCase().includes(search.toLowerCase())
@@ -385,16 +387,20 @@ export default function UserManagement() {
         return "destructive";
       case "moderator":
         return "default";
+      case "loan_officer":
+        return "default";
       default:
         return "secondary";
     }
   };
 
-  const editRoleIsAppRole = ["admin", "moderator", "user"].includes(editRole);
+  const editRoleIsAppRole = ["admin", "moderator", "user", "loan_officer"].includes(editRole);
   const editCustomRoleName = editRoleIsAppRole ? null : customRoles.find((r) => r.id === editRole)?.name ?? null;
   const editCustomRoleNormalized = normalizeRoleString(editCustomRoleName);
   const editRequiresBranch =
-    editCustomRoleNormalized === "branch_manager" || editCustomRoleNormalized === "loan_officer";
+    editRole === "loan_officer" ||
+    editCustomRoleNormalized === "branch_manager" ||
+    editCustomRoleNormalized === "loan_officer";
   const branchNameById = new Map(branches.map((b) => [b.id, b.name]));
 
   return (
@@ -422,7 +428,7 @@ export default function UserManagement() {
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{visibleUsers.length}</div>
+            <div className="text-2xl font-bold">{users.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -431,7 +437,7 @@ export default function UserManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {visibleUsers.filter((u) => u.is_active).length}
+              {users.filter((u) => u.is_active).length}
             </div>
           </CardContent>
         </Card>
@@ -441,7 +447,7 @@ export default function UserManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {visibleUsers.filter((u) => u.role === "admin").length}
+              {users.filter((u) => u.role === "admin").length}
             </div>
           </CardContent>
         </Card>

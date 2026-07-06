@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useChatScrollToBottom } from "@/hooks/useChatScrollToBottom";
 import { format } from "date-fns";
 import { Link, useSearchParams } from "react-router-dom";
@@ -7,12 +7,11 @@ import {
   usePrequalAgent,
   type PrequalAgentMode,
   type PrequalContact,
+  type GuestPriorSession,
+  type AssignedOfficerProfile,
 } from "@/hooks/usePrequalAgent";
 import type { PrequalSession } from "@/hooks/usePrequalSessions";
-import {
-  formatSessionTitle,
-  getOfficerProfile,
-} from "../../supabase/functions/_shared/prequal-tools";
+import { formatSessionTitle, mergeBorrowerSnapshotIntoProfile } from "../../supabase/functions/_shared/prequal-tools";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +21,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { validatePhone } from "@/lib/validation";
+import {
+  constrainPhoneInput,
+  normalizePhoneForStorage,
+  PHONE_FORMAT_EXAMPLE,
+  formatPhoneDisplay,
+} from "@/lib/validation";
 import {
   Send,
   Download,
@@ -31,7 +35,6 @@ import {
   TrendingUp,
   FileText,
   UserCheck,
-  LogIn,
   History,
   MessageSquarePlus,
   Loader2,
@@ -41,6 +44,10 @@ import {
 } from "lucide-react";
 import jsPDF from "jspdf";
 import logoUrl from "@/assets/mortgageai-logo.svg";
+import {
+  PrequalGuestCompletionModal,
+  type PrequalGuestCompletionValues,
+} from "@/components/prequal/PrequalGuestCompletionModal";
 
 function formatSessionTime(dateStr: string): string {
   const d = new Date(dateStr);
@@ -65,11 +72,28 @@ function sessionLabel(session: PrequalSession): string {
   return `Pre-qual · ${date}`;
 }
 
+function guestPriorSessionLabel(session: GuestPriorSession): string {
+  const title = formatSessionTitle(session.title ?? "");
+  if (title) return title;
+  if (session.preview) return session.preview;
+  const date = format(new Date(session.updated_at), "MMM d, yyyy");
+  if (session.status === "completed") return `Completed · ${date}`;
+  if (session.message_count === 0) return `Started · ${date}`;
+  return `Pre-qual · ${date}`;
+}
+
+function guestPriorSessionMeta(session: GuestPriorSession): string {
+  const when = formatSessionTime(session.updated_at);
+  if (session.message_count === 0) return `No messages yet · ${when}`;
+  const noun = session.message_count === 1 ? "message" : "messages";
+  return `${session.message_count} ${noun} · ${when}`;
+}
+
 interface PrequalChatProps {
   mode?: PrequalAgentMode;
 }
 
-export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps) {
+export default function PrequalChat({ mode = "guest" }: PrequalChatProps) {
   const { profile: authProfile, user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   // Keep reading from the URL (not a one-shot state) so React Strict Mode remounts
@@ -96,14 +120,30 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
     letterData,
     documentGaps,
     assignedOfficer,
+    assignedOfficerProfile,
+    borrowerId,
+    existingBorrowerProfile,
+    creatingBorrower,
     guestReady,
+    isLoadingGuestSession,
     contactEmail,
     contactName,
     sendMessage,
     startGuestSession,
+    lookupGuestSessions,
+    resumeGuestByEmail,
+    createBorrowerFromPrequal,
     resetSession,
     loadSession,
   } = usePrequalAgent({ mode, contact, startFresh });
+
+  const [completionModalOpen, setCompletionModalOpen] = useState(false);
+  const [hadBorrowerAtStart, setHadBorrowerAtStart] = useState(false);
+
+  useEffect(() => {
+    setCompletionModalOpen(false);
+    setHadBorrowerAtStart(false);
+  }, [sessionId]);
 
   // Drop ?new=1 once a real session exists or the user opens history.
   useEffect(() => {
@@ -114,10 +154,16 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
   }, [startFresh, sessionId, searchParams, setSearchParams]);
 
   const [input, setInput] = useState("");
-  const [guestName, setGuestName] = useState("");
+  const [guestFirstName, setGuestFirstName] = useState("");
+  const [guestLastName, setGuestLastName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [intakeError, setIntakeError] = useState("");
+  const [intakeBusy, setIntakeBusy] = useState(false);
+  const [guestResumePrompt, setGuestResumePrompt] = useState<{
+    contact: PrequalContact;
+    sessions: GuestPriorSession[];
+  } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const busy = loading || isStreaming;
   // Include last-message length so auto-scroll follows word-by-word reveal.
@@ -126,7 +172,50 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
   const { scrollRootRef, bottomRef } = useChatScrollToBottom(scrollKey, busy);
 
   const isPublic = mode === "guest";
-  const showIntake = isPublic && !guestReady;
+  const showGuestResumeChoice = isPublic && !!guestResumePrompt && !guestReady;
+  const showIntake =
+    isPublic && !guestReady && !isLoadingGuestSession && !showGuestResumeChoice;
+  const chatComplete =
+    isPublic &&
+    guestReady &&
+    !isLoadingGuestSession &&
+    !!assignedOfficer &&
+    (!!letterData || (!!loanMatch && (loanMatch.prequal_amount ?? 0) > 0));
+
+  useEffect(() => {
+    if (borrowerId && !chatComplete) {
+      setHadBorrowerAtStart(true);
+    }
+  }, [borrowerId, chatComplete]);
+
+  const isExistingBorrower = hadBorrowerAtStart && !!borrowerId;
+  const canUpdateProfile = chatComplete && isExistingBorrower;
+  const showProfilePrompt = chatComplete && !borrowerId;
+  const showCompletionModal = completionModalOpen && showProfilePrompt;
+  const profileModalMode = isExistingBorrower ? "update" : "complete";
+
+  const scorecardProfile = useMemo(
+    () => mergeBorrowerSnapshotIntoProfile(profile, existingBorrowerProfile),
+    [profile, existingBorrowerProfile],
+  );
+
+  const handleCompletionDismiss = () => {
+    setCompletionModalOpen(false);
+  };
+
+  const handleCompletionSubmit = async (values: PrequalGuestCompletionValues) => {
+    await createBorrowerFromPrequal({
+      first_name: values.first_name,
+      last_name: values.last_name,
+      email: values.email || undefined,
+      phone: values.phone || undefined,
+      city: values.city,
+      state: values.state,
+      street_address: values.street_address || undefined,
+      postal_code: values.postal_code || undefined,
+    });
+    setCompletionModalOpen(false);
+  };
 
   const handleSend = async () => {
     const text = input.trim();
@@ -146,26 +235,67 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
   const handleGuestStart = async (e: React.FormEvent) => {
     e.preventDefault();
     setIntakeError("");
-    const phone = guestPhone.trim();
-    if (phone && !validatePhone(phone)) {
-      setIntakeError("Please enter a valid phone number");
+    const phoneRaw = guestPhone.trim();
+    const phone = phoneRaw ? normalizePhoneForStorage(phoneRaw) : null;
+    if (phoneRaw && !phone) {
+      setIntakeError(`Enter an 11-digit US number (e.g. ${PHONE_FORMAT_EXAMPLE})`);
       return;
     }
+    const contact: PrequalContact = {
+      name: [guestFirstName.trim(), guestLastName.trim()].filter(Boolean).join(" "),
+      email: guestEmail.trim().toLowerCase(),
+      ...(phone ? { phone } : {}),
+    };
+    setIntakeBusy(true);
     try {
-      await startGuestSession({
-        name: guestName,
-        email: guestEmail,
-        ...(phone ? { phone } : {}),
-      });
+      const priorSessions = await lookupGuestSessions(contact.email);
+      if (priorSessions.length > 0) {
+        setGuestResumePrompt({ contact, sessions: priorSessions });
+        return;
+      }
+      await startGuestSession(contact);
     } catch (err) {
       setIntakeError(err instanceof Error ? err.message : "Could not start chat");
+    } finally {
+      setIntakeBusy(false);
+    }
+  };
+
+  const handleResumeGuestSession = async (sessionId: string) => {
+    if (!guestResumePrompt) return;
+    setIntakeError("");
+    setIntakeBusy(true);
+    try {
+      await resumeGuestByEmail(guestResumePrompt.contact, sessionId);
+      setGuestResumePrompt(null);
+    } catch (err) {
+      setIntakeError(err instanceof Error ? err.message : "Could not resume chat");
+    } finally {
+      setIntakeBusy(false);
+    }
+  };
+
+  const handleStartNewGuestSession = async () => {
+    if (!guestResumePrompt) return;
+    const contact = guestResumePrompt.contact;
+    setIntakeError("");
+    setIntakeBusy(true);
+    try {
+      await startGuestSession(contact);
+      setGuestResumePrompt(null);
+    } catch (err) {
+      setIntakeError(err instanceof Error ? err.message : "Could not start chat");
+    } finally {
+      setIntakeBusy(false);
     }
   };
 
   const loginHref = (() => {
     const params = new URLSearchParams();
     const email = contactEmail ?? guestEmail;
-    const name = contactName ?? guestName;
+    const name =
+      contactName ??
+      [guestFirstName.trim(), guestLastName.trim()].filter(Boolean).join(" ");
     if (email) params.set("email", email);
     if (name) params.set("name", name);
     const qs = params.toString();
@@ -257,14 +387,102 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
               <p className="text-xs text-muted-foreground">Free · No account required to start</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" asChild>
-            <Link to={loginHref}>Sign in</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link to={loginHref}>Sign in</Link>
+            </Button>
+          </div>
         </header>
       )}
 
-      <div className={`flex flex-1 min-h-0 gap-0 ${showIntake ? "items-center justify-center p-4" : ""}`}>
-        {showIntake ? (
+      <div
+        className={`flex flex-1 min-h-0 gap-0 ${
+          showIntake || showGuestResumeChoice ? "items-center justify-center p-4" : ""
+        }`}
+      >
+        {isLoadingGuestSession ? (
+          <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Restoring your conversation…
+          </div>
+        ) : showGuestResumeChoice && guestResumePrompt ? (
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6 space-y-4">
+              <div className="text-center space-y-1">
+                <div className="mx-auto w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
+                  A
+                </div>
+                <h1 className="text-lg font-semibold">Welcome back</h1>
+                <p className="text-sm text-muted-foreground">
+                  We found{" "}
+                  {guestResumePrompt.sessions.length === 1
+                    ? "a previous pre-qualification"
+                    : `${guestResumePrompt.sessions.length} previous pre-qualifications`}{" "}
+                  for <span className="font-medium text-foreground">{guestResumePrompt.contact.email}</span>.
+                </p>
+              </div>
+
+              {intakeError && (
+                <p className="text-sm text-destructive rounded-md border border-destructive/20 bg-destructive/5 p-2">
+                  {intakeError}
+                </p>
+              )}
+
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Continue a previous chat
+                </p>
+                <div className="space-y-2">
+                  {guestResumePrompt.sessions.map((session) => (
+                    <button
+                      key={session.id}
+                      type="button"
+                      disabled={intakeBusy || loading}
+                      onClick={() => handleResumeGuestSession(session.id)}
+                      className="w-full rounded-lg border bg-background px-4 py-3 text-left transition-colors hover:bg-muted/60 disabled:opacity-50"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium line-clamp-2">
+                            {guestPriorSessionLabel(session)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {guestPriorSessionMeta(session)}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="capitalize shrink-0">
+                          {session.status}
+                        </Badge>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                className="w-full"
+                disabled={intakeBusy || loading}
+                onClick={handleStartNewGuestSession}
+              >
+                {intakeBusy || loading ? "Starting chat…" : "Start a new pre-qualification"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                disabled={intakeBusy || loading}
+                onClick={() => {
+                  setGuestResumePrompt(null);
+                  setIntakeError("");
+                }}
+              >
+                Use a different email
+              </Button>
+            </CardContent>
+          </Card>
+        ) : showIntake ? (
           <Card className="w-full max-w-md">
             <CardContent className="pt-6 space-y-4">
               <div className="text-center space-y-1">
@@ -282,18 +500,35 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
                     {intakeError}
                   </p>
                 )}
-                <div className="space-y-2">
-                  <Label htmlFor="guest-name">
-                    Full name <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="guest-name"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                    placeholder="Jane Smith"
-                    required
-                    disabled={loading}
-                  />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="guest-first-name">
+                      First name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="guest-first-name"
+                      value={guestFirstName}
+                      onChange={(e) => setGuestFirstName(e.target.value)}
+                      placeholder="Jane"
+                      required
+                      disabled={intakeBusy || loading}
+                      autoComplete="given-name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="guest-last-name">
+                      Last name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="guest-last-name"
+                      value={guestLastName}
+                      onChange={(e) => setGuestLastName(e.target.value)}
+                      placeholder="Smith"
+                      required
+                      disabled={intakeBusy || loading}
+                      autoComplete="family-name"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="guest-email">
@@ -306,7 +541,7 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
                     onChange={(e) => setGuestEmail(e.target.value)}
                     placeholder="you@example.com"
                     required
-                    disabled={loading}
+                    disabled={intakeBusy || loading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -315,14 +550,14 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
                     id="guest-phone"
                     type="tel"
                     value={guestPhone}
-                    onChange={(e) => setGuestPhone(e.target.value)}
-                    placeholder="(555) 123-4567"
-                    disabled={loading}
+                    onChange={(e) => setGuestPhone(constrainPhoneInput(e.target.value))}
+                    placeholder={PHONE_FORMAT_EXAMPLE}
+                    disabled={intakeBusy || loading}
                     autoComplete="tel"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Starting chat…" : "Start pre-qualification"}
+                <Button type="submit" className="w-full" disabled={intakeBusy || loading}>
+                  {intakeBusy || loading ? "Starting chat…" : "Start pre-qualification"}
                 </Button>
                 <p className="text-xs text-center text-muted-foreground">
                   Already have an account?{" "}
@@ -336,7 +571,7 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
         ) : (
           <>
             {!isPublic && user && (
-              <aside className="w-64 flex-shrink-0 border-r bg-muted/20 flex flex-col min-h-0 hidden lg:flex">
+              <aside className="w-64 flex-shrink-0 border-r bg-muted/20 hidden lg:flex flex-col min-h-0">
                 <div className="px-4 py-3 border-b">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <History className="w-3.5 h-3.5" />
@@ -408,13 +643,26 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
                   </p>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                  <span className="text-xs text-muted-foreground">Online</span>
-                  {!isPublic && (
+                  {isPublic ? (
+                    <Button variant="outline" size="sm" className="text-xs h-7" asChild>
+                      <Link
+                        to="/prequal-public?new=1"
+                        onClick={() => {
+                          resetSession();
+                          setGuestResumePrompt(null);
+                        }}
+                      >
+                        <MessageSquarePlus className="w-3.5 h-3.5 mr-1.5" />
+                        New Chat
+                      </Link>
+                    </Button>
+                  ) : (
                     <Button variant="ghost" size="sm" onClick={resetSession} className="text-xs lg:hidden">
                       New Session
                     </Button>
                   )}
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  <span className="text-xs text-muted-foreground">Online</span>
                 </div>
               </div>
 
@@ -494,6 +742,23 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
               )}
 
               <div className="border-t bg-background p-4 shrink-0">
+                {showProfilePrompt && !completionModalOpen && (
+                  <div className="max-w-2xl mx-auto mb-3 flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+                    <span className="text-muted-foreground">
+                      {canUpdateProfile
+                        ? `Welcome back — update your profile if anything changed so ${assignedOfficer} has your latest details.`
+                        : `Optionally confirm your contact details so ${assignedOfficer} can get back to you.`}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setCompletionModalOpen(true)}
+                      disabled={busy}
+                    >
+                      {canUpdateProfile ? "Update profile" : "Complete profile"}
+                    </Button>
+                  </div>
+                )}
                 <div className="max-w-2xl mx-auto flex gap-3 items-end">
                   <Textarea
                     ref={inputRef}
@@ -521,18 +786,39 @@ export default function PrequalChat({ mode = "authenticated" }: PrequalChatProps
             </div>
 
             <ScorecardSidebar
-              profile={profile}
+              profile={scorecardProfile}
               loanMatch={loanMatch}
               documentGaps={documentGaps}
               letterData={letterData}
               assignedOfficer={assignedOfficer}
+              assignedOfficerProfile={assignedOfficerProfile}
               downloadLetter={downloadLetter}
-              showAccountCta={isPublic || !user}
-              loginHref={loginHref}
             />
           </>
         )}
       </div>
+
+      {assignedOfficer && (
+        <PrequalGuestCompletionModal
+          open={showCompletionModal}
+          mode={profileModalMode}
+          assignedOfficer={assignedOfficer}
+          assignedOfficerProfile={assignedOfficerProfile}
+          borrowerName={profile.borrower_name ?? contactName}
+          borrowerEmail={profile.borrower_email ?? contactEmail}
+          borrowerPhone={profile.borrower_phone}
+          borrowerCity={profile.city}
+          borrowerState={profile.state}
+          borrowerStreetAddress={profile.street_address}
+          borrowerPostalCode={profile.postal_code}
+          existingBorrowerProfile={existingBorrowerProfile}
+          intakeFirstName={guestFirstName}
+          intakeLastName={guestLastName}
+          submitting={creatingBorrower}
+          onSubmit={handleCompletionSubmit}
+          onDismiss={handleCompletionDismiss}
+        />
+      )}
     </div>
   );
 }
@@ -543,21 +829,19 @@ function ScorecardSidebar({
   documentGaps,
   letterData,
   assignedOfficer,
+  assignedOfficerProfile,
   downloadLetter,
-  showAccountCta,
-  loginHref,
 }: {
   profile: ReturnType<typeof usePrequalAgent>["profile"];
   loanMatch: ReturnType<typeof usePrequalAgent>["loanMatch"];
   documentGaps: string[];
   letterData: ReturnType<typeof usePrequalAgent>["letterData"];
   assignedOfficer: string | null;
+  assignedOfficerProfile: AssignedOfficerProfile | null;
   downloadLetter: () => void;
-  showAccountCta: boolean;
-  loginHref: string;
 }) {
   return (
-    <div className="w-80 flex-shrink-0 bg-background min-h-0 h-full flex flex-col hidden md:flex">
+    <div className="w-80 flex-shrink-0 bg-background min-h-0 h-full hidden md:flex flex-col">
       <div className="shrink-0 border-b px-4 py-4">
         <h2 className="text-sm font-semibold flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-primary shrink-0" />
@@ -575,7 +859,7 @@ function ScorecardSidebar({
           <div className="space-y-2 text-xs">
             <MetricRow label="Name" value={profile.borrower_name ?? "—"} />
             <MetricRow label="Email" value={profile.borrower_email ?? "—"} />
-            <MetricRow label="Phone" value={profile.borrower_phone ?? "—"} />
+            <MetricRow label="Phone" value={formatPhoneDisplay(profile.borrower_phone)} />
             <MetricRow
               label="Annual Income"
               value={profile.annual_income ? `$${profile.annual_income.toLocaleString()}` : "—"}
@@ -694,28 +978,10 @@ function ScorecardSidebar({
         {assignedOfficer && (
           <>
             <Separator />
-            <LoanOfficerCard name={assignedOfficer} />
-          </>
-        )}
-
-        {showAccountCta && (
-          <>
-            <Separator />
-            <Card className="border-primary/20">
-              <CardContent className="p-4 space-y-3">
-                <p className="text-sm font-semibold">Save your progress</p>
-                <p className="text-xs text-muted-foreground">
-                  Create an account or sign in so your loan officer can follow up and you can track
-                  your pre-qualification.
-                </p>
-                <Button asChild size="sm" className="w-full">
-                  <Link to={loginHref}>
-                    <LogIn className="w-3 h-3 mr-2" />
-                    Sign in / Create account
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
+            <LoanOfficerCard
+              name={assignedOfficer}
+              officer={assignedOfficerProfile}
+            />
           </>
         )}
         </div>
@@ -724,15 +990,20 @@ function ScorecardSidebar({
   );
 }
 
-function LoanOfficerCard({ name }: { name: string }) {
-  const officer = getOfficerProfile(name);
+function LoanOfficerCard({
+  name,
+  officer,
+}: {
+  name: string;
+  officer: AssignedOfficerProfile | null;
+}) {
+  const title = officer?.title ?? "Loan Officer";
   const initials = name
     .split(" ")
     .map((n) => n[0])
     .join("")
     .slice(0, 2);
-  const title = officer?.title ?? "MCT Mortgage Specialist";
-  const phoneHref = officer?.phone.replace(/[^\d+]/g, "");
+  const phoneHref = officer?.phone?.replace(/[^\d+]/g, "");
 
   return (
     <div>
@@ -753,15 +1024,17 @@ function LoanOfficerCard({ name }: { name: string }) {
           </div>
         </div>
 
-        {officer && (
+        {officer?.email && (
           <div className="space-y-1.5 text-xs">
-            <a
-              href={`tel:${phoneHref}`}
-              className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
-            >
-              <Phone className="w-3 h-3 text-muted-foreground shrink-0" />
-              <span>{officer.phone}</span>
-            </a>
+            {officer.phone && phoneHref && (
+              <a
+                href={`tel:${phoneHref}`}
+                className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
+              >
+                <Phone className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span>{officer.phone}</span>
+              </a>
+            )}
             <a
               href={`mailto:${officer.email}`}
               className="flex items-center gap-2 text-foreground hover:text-primary transition-colors min-w-0"
@@ -769,10 +1042,12 @@ function LoanOfficerCard({ name }: { name: string }) {
               <Mail className="w-3 h-3 text-muted-foreground shrink-0" />
               <span className="truncate">{officer.email}</span>
             </a>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <BadgeCheck className="w-3 h-3 shrink-0" />
-              <span>NMLS #{officer.nmls_id}</span>
-            </div>
+            {officer.nmls_id && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <BadgeCheck className="w-3 h-3 shrink-0" />
+                <span>NMLS #{officer.nmls_id}</span>
+              </div>
+            )}
           </div>
         )}
 

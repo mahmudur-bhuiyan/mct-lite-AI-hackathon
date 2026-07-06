@@ -7,6 +7,10 @@ export const PROFILE_COLUMNS = new Set([
   "borrower_name",
   "borrower_email",
   "borrower_phone",
+  "street_address",
+  "city",
+  "state",
+  "postal_code",
   "annual_income",
   "monthly_debts",
   "assets",
@@ -19,12 +23,17 @@ export const PROFILE_COLUMNS = new Set([
   "down_payment",
   "front_dti",
   "back_dti",
+  "letter_ready",
 ]);
 
 export interface PrequalProfile {
   borrower_name?: string;
   borrower_email?: string;
   borrower_phone?: string;
+  street_address?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
   annual_income?: number;
   monthly_debts?: number;
   assets?: number;
@@ -39,6 +48,84 @@ export interface PrequalProfile {
   back_dti?: number;
   assigned_officer?: string;
   letter_ready?: boolean;
+}
+
+export const LOAN_PRODUCTS = ["Conventional", "FHA", "VA", "USDA"] as const;
+export type LoanProduct = (typeof LOAN_PRODUCTS)[number];
+
+/** Map free-text or variant product names to a valid DB enum value. */
+export function normalizeLoanProduct(raw: string): LoanProduct {
+  const t = raw.trim();
+  if ((LOAN_PRODUCTS as readonly string[]).includes(t)) return t as LoanProduct;
+  const u = t.toUpperCase();
+  if (u.includes("FHA")) return "FHA";
+  if (u.includes("USDA")) return "USDA";
+  if (u.includes("VA") && !u.includes("CONV")) return "VA";
+  return "Conventional";
+}
+
+/** Coerce tool-call / JSON values to finite numbers (OpenAI sometimes returns strings). */
+export function coerceNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const cleaned = value.trim().replace(/[,$\s]/g, "");
+    if (!cleaned) return null;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/**
+ * Recover letter data from a stored assistant congratulations message when the
+ * DB row was never written (e.g. persist failed after a successful chat turn).
+ */
+export function inferLetterFromAssistantMessage(
+  messages: Array<{ role: string; content: string }>,
+  profile: PrequalProfile,
+): LetterData | null {
+  const lastCongrats = [...messages]
+    .reverse()
+    .find(
+      (m) =>
+        m.role === "assistant" &&
+        /pre-qualif/i.test(m.content) &&
+        /\$[\d,]+/.test(m.content),
+    );
+  if (!lastCongrats) return null;
+
+  const amounts = [...lastCongrats.content.matchAll(/\$([0-9,]+)/g)]
+    .map((m) => coerceNumber(m[1]))
+    .filter((n): n is number => n != null && n > 0);
+  if (amounts.length === 0) return null;
+
+  const prequalAmount = Math.max(...amounts);
+  const purchasePrice = profile.target_price ?? prequalAmount;
+  const productMatch = lastCongrats.content.match(/\b(VA|FHA|USDA|Conventional)\b/i);
+  let loanProduct = productMatch?.[1] ?? "Conventional";
+  if (!productMatch && profile.is_veteran) loanProduct = "VA";
+
+  return {
+    borrower_name: profile.borrower_name ?? "Borrower",
+    prequal_amount: prequalAmount,
+    loan_product: normalizeLoanProduct(loanProduct),
+    purchase_price: purchasePrice,
+  };
+}
+
+/** Recover assigned LO name from assistant closing message when match row is missing. */
+export function inferOfficerFromAssistantMessage(
+  messages: Array<{ role: string; content: string }>,
+): string | null {
+  const last = [...messages]
+    .reverse()
+    .find(
+      (m) => m.role === "assistant" && /loan officer/i.test(m.content),
+    );
+  if (!last) return null;
+  const match = last.content.match(/loan officer,?\s+(?:\*\*)?([^*,\n]+)(?:\*\*)?/i);
+  const name = match?.[1]?.trim();
+  return name || null;
 }
 
 export interface LoanMatch {
@@ -70,6 +157,7 @@ export interface PipelineRow {
   session_id: string;
   borrower_name: string | null;
   borrower_email?: string | null;
+  borrower_phone?: string | null;
   product_type?: string | null;
   prequal_amount?: number | null;
   loan_amount?: number | null;
@@ -105,6 +193,81 @@ export function formatSessionTitle(message: string, maxLen = 20): string | null 
   return `${base}…`;
 }
 
+export const GUEST_RESUME_MAX_SESSIONS = 3;
+export const GUEST_RESUME_MAX_ACTIVE = 2;
+export const GUEST_RESUME_MAX_COMPLETED = 1;
+
+/** Guest welcome-back list: up to 3 chats (2 active + 1 completed max), most recent first. */
+export function limitGuestResumeSessions<T extends { status: string; updated_at: string }>(
+  sessions: T[],
+): T[] {
+  const byUpdatedDesc = (a: T, b: T) => b.updated_at.localeCompare(a.updated_at);
+
+  const active = sessions
+    .filter((s) => s.status === "active")
+    .sort(byUpdatedDesc)
+    .slice(0, GUEST_RESUME_MAX_ACTIVE);
+
+  const completed = sessions
+    .filter((s) => s.status === "completed")
+    .sort(byUpdatedDesc)
+    .slice(0, GUEST_RESUME_MAX_COMPLETED);
+
+  return [...active, ...completed].sort(byUpdatedDesc).slice(0, GUEST_RESUME_MAX_SESSIONS);
+}
+
+type BorrowerSnapshot = {
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  street_address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+};
+
+/** Fill identity fields on the scorecard from a linked borrowers row when missing. */
+export function mergeBorrowerSnapshotIntoProfile(
+  profile: PrequalProfile,
+  borrower: BorrowerSnapshot | Record<string, unknown> | null | undefined,
+): PrequalProfile {
+  if (!borrower) return profile;
+
+  const first = String(borrower.first_name ?? "").trim();
+  const last = String(borrower.last_name ?? "").trim();
+  const snapshotName = [first, last].filter(Boolean).join(" ");
+  const snapshotEmail = String(borrower.email ?? "").trim();
+  const snapshotPhone = String(borrower.phone ?? "").trim();
+  const snapshotStreet = String(borrower.street_address ?? "").trim();
+  const snapshotCity = String(borrower.city ?? "").trim();
+  const snapshotState = String(borrower.state ?? "").trim().toUpperCase();
+  const snapshotPostal = String(borrower.postal_code ?? "").trim();
+
+  return {
+    ...profile,
+    borrower_name: profile.borrower_name?.trim() || snapshotName || undefined,
+    borrower_email: profile.borrower_email?.trim() || snapshotEmail || undefined,
+    borrower_phone: profile.borrower_phone?.trim() || snapshotPhone || undefined,
+    street_address: profile.street_address?.trim() || snapshotStreet || undefined,
+    city: profile.city?.trim() || snapshotCity || undefined,
+    state: profile.state?.trim() || snapshotState || undefined,
+    postal_code: profile.postal_code?.trim() || snapshotPostal || undefined,
+  };
+}
+
+/** Split a full display name into first / last for borrower records. */
+export function splitBorrowerName(fullName: string): { first_name: string; last_name: string } {
+  const cleaned = fullName.replace(/\s+/g, " ").trim();
+  if (!cleaned) return { first_name: "", last_name: "" };
+  const space = cleaned.indexOf(" ");
+  if (space < 0) return { first_name: cleaned, last_name: "" };
+  return {
+    first_name: cleaned.slice(0, space).trim(),
+    last_name: cleaned.slice(space + 1).trim(),
+  };
+}
+
 export function extractFinancials(
   input: Record<string, unknown>,
   profile: PrequalProfile,
@@ -116,6 +279,10 @@ export function extractFinancials(
     if (typeof value === "string") {
       const trimmed = value.trim();
       if (!trimmed) continue;
+      if (key === "state") {
+        extracted[key] = trimmed.toUpperCase().slice(0, 2);
+        continue;
+      }
       extracted[key] = trimmed;
       continue;
     }
@@ -242,19 +409,33 @@ export function generatePrequalLetter(
   input: Record<string, unknown>,
   profile: PrequalProfile,
 ): { profile: PrequalProfile; letter: LetterData } {
+  const purchasePrice =
+    coerceNumber(input.purchase_price) ?? profile.target_price ?? 0;
+  const prequalAmount =
+    coerceNumber(input.prequal_amount) ?? purchasePrice;
   const letter: LetterData = {
-    borrower_name: input.borrower_name as string,
-    prequal_amount: input.prequal_amount as number,
-    loan_product: input.loan_product as string,
-    purchase_price: input.purchase_price as number,
+    borrower_name: String(input.borrower_name ?? profile.borrower_name ?? "Borrower"),
+    prequal_amount: prequalAmount,
+    loan_product: normalizeLoanProduct(String(input.loan_product ?? "Conventional")),
+    purchase_price: purchasePrice,
   };
+  const down =
+    profile.down_payment ??
+    (purchasePrice > prequalAmount ? purchasePrice - prequalAmount : undefined);
   return {
     letter,
-    profile: { ...profile, borrower_name: letter.borrower_name, letter_ready: true },
+    profile: {
+      ...profile,
+      borrower_name: letter.borrower_name,
+      target_price: purchasePrice || profile.target_price,
+      ...(down != null ? { down_payment: down } : {}),
+      letter_ready: true,
+    },
   };
 }
 
 export interface OfficerProfile {
+  user_id: string;
   name: string;
   title: string;
   email: string;
@@ -263,100 +444,86 @@ export interface OfficerProfile {
   specialty: string;
 }
 
-const OFFICER_ROSTER: OfficerProfile[] = [
+export interface PrequalToolContext {
+  officers?: OfficerProfile[];
+  rng?: () => number;
+}
+
+/** Deterministic roster for unit tests only. */
+export const TEST_OFFICERS: OfficerProfile[] = [
   {
-    name: "James Rodriguez",
-    title: "VA Loan Specialist",
-    email: "james.rodriguez@mctmortgage.com",
-    phone: "(555) 201-4401",
-    nmls_id: "1847201",
-    specialty: "VA & military home loans",
+    user_id: "test-lo-1",
+    name: "Cristiano Ronaldo",
+    title: "Loan Officer",
+    email: "cristiano.ronaldo@gmail.com",
+    phone: "",
+    nmls_id: "",
+    specialty: "Mortgage loans",
   },
   {
-    name: "Patricia Chen",
-    title: "VA Loan Specialist",
-    email: "patricia.chen@mctmortgage.com",
-    phone: "(555) 201-4402",
-    nmls_id: "1928340",
-    specialty: "VA & military home loans",
-  },
-  {
-    name: "David Thompson",
-    title: "FHA Loan Specialist",
-    email: "david.thompson@mctmortgage.com",
-    phone: "(555) 201-4501",
-    nmls_id: "1765092",
-    specialty: "FHA & first-time buyers",
-  },
-  {
-    name: "Maria Santos",
-    title: "FHA Loan Specialist",
-    email: "maria.santos@mctmortgage.com",
-    phone: "(555) 201-4502",
-    nmls_id: "2011847",
-    specialty: "FHA & first-time buyers",
-  },
-  {
-    name: "Sarah Mitchell",
-    title: "Senior Mortgage Specialist",
-    email: "sarah.mitchell@mctmortgage.com",
-    phone: "(555) 201-4601",
-    nmls_id: "1583921",
-    specialty: "Conventional loans",
-  },
-  {
-    name: "Robert Kim",
-    title: "Senior Mortgage Specialist",
-    email: "robert.kim@mctmortgage.com",
-    phone: "(555) 201-4602",
-    nmls_id: "1638475",
-    specialty: "Conventional loans",
-  },
-  {
-    name: "Linda Foster",
-    title: "USDA Loan Specialist",
-    email: "linda.foster@mctmortgage.com",
-    phone: "(555) 201-4701",
-    nmls_id: "1892043",
-    specialty: "USDA rural development loans",
-  },
-  {
-    name: "Mark Williams",
-    title: "USDA Loan Specialist",
-    email: "mark.williams@mctmortgage.com",
-    phone: "(555) 201-4702",
-    nmls_id: "1746298",
-    specialty: "USDA rural development loans",
+    user_id: "test-lo-2",
+    name: "Neymar Jr",
+    title: "Loan Officer",
+    email: "neymar.jr@gmail.com",
+    phone: "",
+    nmls_id: "",
+    specialty: "Mortgage loans",
   },
 ];
 
-const OFFICERS_BY_PRODUCT: Record<string, string[]> = {
-  VA: ["James Rodriguez", "Patricia Chen"],
-  FHA: ["David Thompson", "Maria Santos"],
-  Conventional: ["Sarah Mitchell", "Robert Kim"],
-  USDA: ["Linda Foster", "Mark Williams"],
-};
+export function profileToOfficer(row: {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+}): OfficerProfile {
+  return {
+    user_id: row.id,
+    name: row.full_name?.trim() || row.email || "Loan Officer",
+    title: "Loan Officer",
+    email: row.email || "",
+    phone: "",
+    nmls_id: "",
+    specialty: "Mortgage loans",
+  };
+}
 
-const OFFICERS_BY_NAME = new Map(OFFICER_ROSTER.map((o) => [o.name, o]));
-
-/** Look up full loan-officer details by display name (pipeline stores name only). */
-export function getOfficerProfile(name: string | null | undefined): OfficerProfile | null {
+/** Look up loan-officer details by display name (pipeline stores name only). */
+export function getOfficerProfile(
+  name: string | null | undefined,
+  officers?: OfficerProfile[],
+): OfficerProfile | null {
   if (!name) return null;
-  return OFFICERS_BY_NAME.get(name) ?? null;
+  const roster = officers ?? [];
+  const exact = roster.find((o) => o.name === name);
+  if (exact) return exact;
+  const ci = roster.find((o) => o.name.toLowerCase() === name.toLowerCase());
+  if (ci) return ci;
+  return {
+    user_id: "",
+    name,
+    title: "Loan Officer",
+    email: "",
+    phone: "",
+    nmls_id: "",
+    specialty: "",
+  };
 }
 
 export function routeToOfficer(
-  input: Record<string, unknown>,
+  _input: Record<string, unknown>,
   profile: PrequalProfile,
-  rng: () => number = Math.random,
-): { profile: PrequalProfile; assigned_officer: string; officer: OfficerProfile } {
-  const list = OFFICERS_BY_PRODUCT[input.loan_product as string] ?? ["Sarah Mitchell"];
-  const assigned = list[Math.floor(rng() * list.length)];
-  const officer = OFFICERS_BY_NAME.get(assigned)!;
+  context: PrequalToolContext = {},
+): { profile: PrequalProfile; assigned_officer: string; officer: OfficerProfile | null } {
+  const officers = context.officers ?? [];
+  if (officers.length === 0) {
+    return { assigned_officer: "", officer: null, profile: { ...profile } };
+  }
+  const rng = context.rng ?? Math.random;
+  const officer = officers[Math.floor(rng() * officers.length)]!;
   return {
-    assigned_officer: assigned,
+    assigned_officer: officer.name,
     officer,
-    profile: { ...profile, assigned_officer: assigned },
+    profile: { ...profile, assigned_officer: officer.name },
   };
 }
 
@@ -418,20 +585,101 @@ export function buildLoanMatchFromLetter(
     );
     return {
       ...match,
-      product_type: letter.loan_product,
+      product_type: normalizeLoanProduct(letter.loan_product),
       prequal_amount: letter.prequal_amount,
     };
   }
 
   const ltv = price > 0 ? Math.round((loan_amount / price) * 100) : 0;
   return {
-    product_type: letter.loan_product,
+    product_type: normalizeLoanProduct(letter.loan_product),
     prequal_amount: letter.prequal_amount,
     loan_amount,
     down_payment: down,
     ltv,
     estimated_rate: 7.0,
     monthly_payment: 0,
+  };
+}
+
+/** Normalize LO pipeline status when a letter was issued. */
+export function normalizePipelineStatus(
+  status: PipelineRow["status"],
+  letterGenerated: boolean,
+  sessionCompleted = false,
+): PipelineRow["status"] {
+  if (letterGenerated || sessionCompleted) return "qualified";
+  return status;
+}
+
+/**
+ * has enough profile data (or is marked completed) to show in the LO dashboard.
+ */
+export function buildPipelineRowFromProfileOnly(
+  sessionId: string,
+  sessionStatus: string,
+  profile: PrequalProfile,
+  guest?: {
+    name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  },
+  createdAt?: string,
+): PipelineRow | null {
+  const borrowerName = profile.borrower_name ?? guest?.name ?? null;
+  const borrowerEmail = profile.borrower_email ?? guest?.email ?? null;
+  const borrowerPhone = profile.borrower_phone ?? guest?.phone ?? null;
+  const hasIdentity = !!(borrowerName || borrowerEmail);
+  const hasFinancials =
+    profile.target_price != null ||
+    profile.back_dti != null ||
+    profile.credit_tier != null;
+  if (!hasIdentity && !hasFinancials) return null;
+
+  const price = profile.target_price ?? null;
+  const down = profile.down_payment ?? 0;
+  const sessionCompleted = sessionStatus === "completed";
+  const letterReady = sessionCompleted || profile.letter_ready === true;
+  const loanAmount = price != null ? Math.max(0, price - down) : null;
+
+  let product: string | null = null;
+  let estimatedRate: number | null = null;
+  let monthlyPayment: number | null = null;
+  if (price != null && profile.annual_income && profile.credit_tier) {
+    const { match } = matchLoanProducts(
+      {
+        target_price: price,
+        down_payment: down,
+        annual_income: profile.annual_income,
+        credit_tier: profile.credit_tier,
+        is_veteran: profile.is_veteran ?? false,
+        monthly_debts: profile.monthly_debts ?? 0,
+      },
+      profile,
+    );
+    product = match.product_type;
+    estimatedRate = match.estimated_rate;
+    monthlyPayment = match.monthly_payment;
+  } else if (profile.is_veteran) {
+    product = "VA";
+  }
+
+  return {
+    session_id: sessionId,
+    borrower_name: borrowerName,
+    borrower_email: borrowerEmail,
+    borrower_phone: borrowerPhone,
+    product_type: product,
+    prequal_amount: price,
+    loan_amount: loanAmount,
+    estimated_rate: estimatedRate,
+    monthly_payment: monthlyPayment,
+    back_dti: profile.back_dti ?? null,
+    credit_tier: profile.credit_tier ?? null,
+    status: letterReady ? "qualified" : "inquiry",
+    letter_generated: letterReady,
+    assigned_officer: profile.assigned_officer ?? null,
+    created_at: createdAt,
   };
 }
 
@@ -468,7 +716,8 @@ export function buildPipelineMatchRow(
     session_id: sessionId,
     borrower_name: profile.borrower_name ?? null,
     borrower_email: profile.borrower_email ?? null,
-    product_type: loanMatch.product_type,
+    borrower_phone: profile.borrower_phone ?? null,
+    product_type: normalizeLoanProduct(loanMatch.product_type),
     prequal_amount: loanMatch.prequal_amount,
     loan_amount: loanMatch.loan_amount,
     estimated_rate: loanMatch.estimated_rate,
@@ -486,6 +735,58 @@ export interface PipelineStats {
   qualified: number;
   pending: number;
   avgPrequal: number;
+}
+
+/** Higher = more important when deduping multiple sessions for the same borrower email. */
+export function pipelineRowPriority(row: PipelineRow): number {
+  const statusRank: Record<PipelineRow["status"], number> = {
+    qualified: 50,
+    pending: 40,
+    referred: 30,
+    inquiry: 20,
+    declined: 10,
+  };
+  let score = statusRank[row.status] ?? 0;
+  if (row.prequal_amount != null && row.prequal_amount > 0) score += 15;
+  if (row.product_type) score += 10;
+  if (row.back_dti != null) score += 5;
+  if (row.credit_tier) score += 3;
+  return score;
+}
+
+/**
+ * Collapse multiple pipeline rows to one per email (keeps the strongest lead).
+ * Not used for the LO dashboard — each pre-qual session is its own row so multiple
+ * completed chats for the same borrower are all visible.
+ */
+export function dedupePipelineByEmail(rows: PipelineRow[]): PipelineRow[] {
+  const byEmail = new Map<string, PipelineRow>();
+
+  for (const row of rows) {
+    const email = (row.borrower_email ?? "").trim().toLowerCase();
+    const key = email || `session:${row.session_id}`;
+    const existing = byEmail.get(key);
+    if (!existing) {
+      byEmail.set(key, row);
+      continue;
+    }
+
+    const existingPriority = pipelineRowPriority(existing);
+    const rowPriority = pipelineRowPriority(row);
+    const existingAt = existing.created_at ?? "";
+    const rowAt = row.created_at ?? "";
+
+    if (
+      rowPriority > existingPriority ||
+      (rowPriority === existingPriority && rowAt > existingAt)
+    ) {
+      byEmail.set(key, row);
+    }
+  }
+
+  return Array.from(byEmail.values()).sort((a, b) =>
+    (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+  );
 }
 
 export function computePipelineStats(rows: Pick<PipelineRow, "status" | "prequal_amount">[]): PipelineStats {
@@ -520,6 +821,7 @@ export function runPrequalScenario(input: {
   is_veteran?: boolean;
   borrower_name: string;
   session_id?: string;
+  officers?: OfficerProfile[];
 }) {
   let profile: PrequalProfile = {};
 
@@ -581,7 +883,7 @@ export function runPrequalScenario(input: {
   const routed = routeToOfficer(
     { loan_product: matched.match.product_type, credit_tier: input.credit_tier },
     profile,
-    () => 0,
+    { officers: input.officers ?? TEST_OFFICERS, rng: () => 0 },
   );
   profile = routed.profile;
 
@@ -610,6 +912,7 @@ export function executeTool(
   name: string,
   input: Record<string, unknown>,
   profile: Record<string, unknown>,
+  context: PrequalToolContext = {},
 ): { result: string; profile: Record<string, unknown> } {
   const p = profile as PrequalProfile;
 
@@ -650,16 +953,29 @@ export function executeTool(
   }
 
   if (name === "route_to_officer") {
-    const { profile: updated, assigned_officer, officer } = routeToOfficer(input, p);
+    const { profile: updated, assigned_officer, officer } = routeToOfficer(input, p, context);
+    if (!officer) {
+      return {
+        result: JSON.stringify({
+          error: "No loan officers are configured. Please contact support.",
+          assigned_officer: null,
+        }),
+        profile: updated as Record<string, unknown>,
+      };
+    }
     return {
       result: JSON.stringify({
         assigned_officer,
+        user_id: officer.user_id,
+        name: officer.name,
         title: officer.title,
         email: officer.email,
         phone: officer.phone,
         nmls_id: officer.nmls_id,
         specialty: officer.specialty,
         followup_hours: 24,
+        messaging_guidance:
+          "Tell the borrower their loan officer will get back to them within 24 hours. Do NOT tell them to reach out, contact the officer, or ask the officer questions — the officer initiates follow-up.",
       }),
       profile: updated as Record<string, unknown>,
     };
